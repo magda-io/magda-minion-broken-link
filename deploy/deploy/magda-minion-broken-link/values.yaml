@@ -1,0 +1,33 @@
+global:
+  image: {}
+  rollingUpdate: {}
+
+image: 
+  name: "magda-minion-format"
+  # repository: 
+  # tag: 
+  # pullPolicy: 
+  # imagePullSecret: 
+
+defaultImage:
+  repository: docker.io/data61
+  tag: 0.0.57-0
+  pullPolicy: IfNotPresent
+  # imagePullSecret: ""
+
+schedule: "0 0 14,28 * *"
+
+defaultAdminUserId: "00000000-0000-4000-8000-000000000000"
+
+# Setup Domain Wait Time
+# domainWaitTimeConfig:
+#   data.csiro.au: 5
+#   data.gov.au: 5
+#   data.act.gov.au: 30
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 40Mi
+  limits:
+    cpu: 200m

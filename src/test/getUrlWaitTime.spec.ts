@@ -1,5 +1,5 @@
 import {} from "mocha";
-import jsc from "magda-typescript-common/src/test/jsverify";
+import jsc from "jsverify";
 import getUrlWaitTime, {
     getHostWaitTime,
     defaultDomainWaitTime,
@@ -8,7 +8,7 @@ import getUrlWaitTime, {
 import sinon from "sinon";
 import URI from "urijs";
 import { expect } from "chai";
-import { distUrlArb } from "magda-typescript-common/src/test/arbitraries";
+import { distUrlArb } from "@magda/arbitraries";
 
 function randomInt(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1)) + min;

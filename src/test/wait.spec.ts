@@ -1,6 +1,6 @@
 import {} from "mocha";
 import _ from "lodash";
-import jsc from "magda-typescript-common/src/test/jsverify";
+import jsc from "jsverify";
 import { expect } from "chai";
 import wait from "../wait";
 import { shrink } from "jsverify";

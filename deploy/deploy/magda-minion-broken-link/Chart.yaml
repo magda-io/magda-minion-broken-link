@@ -1,0 +1,7 @@
+apiVersion: v1
+name: magda-minion-broken-link
+description: A Helm chart for Magda Broken Link Minion
+version: "0.0.57-0"
+home: "https://github.com/magda-io/magda-minion-broken-link"
+sources: ["https://github.com/magda-io/magda-minion-broken-link"]
+

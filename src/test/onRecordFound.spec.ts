@@ -2,21 +2,21 @@ import {} from "mocha";
 import { expect } from "chai";
 import sinon from "sinon";
 import nock from "nock";
-import jsc from "magda-typescript-common/src/test/jsverify";
+import jsc from "jsverify";
 import _ from "lodash";
 import Client from "ftp";
 import URI from "urijs";
 import Ajv from "ajv";
 
-import { Record } from "magda-typescript-common/src/generated/registry/api";
-import { encodeURIComponentWithApost } from "magda-typescript-common/src/test/util";
+import { Record, AuthorizedRegistryClient } from "@magda/minion-sdk";
+import { encodeURIComponentWithApost } from "@magda/utils";
 import {
     specificRecordArb,
     distUrlArb,
     arrayOfSizeArb,
     arbFlatMap,
     recordArbWithDistArbs
-} from "magda-typescript-common/src/test/arbitraries";
+} from "@magda/arbitraries";
 
 import onRecordFound from "../onRecordFound";
 import { BrokenLinkAspect } from "../brokenLinkAspectDef";
@@ -29,7 +29,6 @@ import {
     failureCodeArb
 } from "./arbitraries";
 import FtpHandler from "../FtpHandler";
-import AuthorizedRegistryClient from "magda-typescript-common/src/registry/AuthorizedRegistryClient";
 import parseUriSafe from "../parseUriSafe";
 import RandomStream from "./RandomStream";
 import {

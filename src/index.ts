@@ -1,9 +1,8 @@
-import minion from "magda-minion-framework/src/index";
+import minion, { commonYargs } from "@magda/minion-sdk";
 import onRecordFound from "./onRecordFound";
 import brokenLinkAspectDef from "./brokenLinkAspectDef";
-import commonYargs from "magda-minion-framework/src/commonYargs";
 import { CoreOptions } from "request";
-import coerceJson from "magda-typescript-common/src/coerceJson";
+import { coerceJson } from "@magda/utils";
 
 const ID = "minion-broken-link";
 

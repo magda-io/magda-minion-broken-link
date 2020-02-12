@@ -1,10 +1,10 @@
 import _ from "lodash";
 import { CoreOptions } from "request";
-
-import retryBackoff from "magda-typescript-common/src/retryBackoff";
-import Registry from "magda-typescript-common/src/registry/AuthorizedRegistryClient";
-import { Record } from "magda-typescript-common/src/generated/registry/api";
-import unionToThrowable from "magda-typescript-common/src/util/unionToThrowable";
+import { retryBackoff, unionToThrowable } from "@magda/utils";
+import {
+    AuthorizedRegistryClient as Registry,
+    Record
+} from "@magda/minion-sdk";
 import { BrokenLinkAspect, RetrieveResult } from "./brokenLinkAspectDef";
 import FTPHandler from "./FtpHandler";
 import parseUriSafe from "./parseUriSafe";

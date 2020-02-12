@@ -1,4 +1,4 @@
-import { Record } from "magda-typescript-common/src/generated/registry/api";
+import { Record } from "@magda/minion-sdk";
 import _ from "lodash";
 
 /**

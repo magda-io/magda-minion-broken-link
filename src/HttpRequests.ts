@@ -1,5 +1,5 @@
 import { CoreOptions } from "request";
-import request from "magda-typescript-common/src/request";
+import { request } from "@magda/utils";
 import http from "http";
 import DevNull from "./DevNull";
 

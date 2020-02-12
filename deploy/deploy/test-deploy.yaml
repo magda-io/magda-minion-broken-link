@@ -1,0 +1,4 @@
+domainWaitTimeConfig:
+  data.csiro.au: 5
+  data.gov.au: 5
+  data.act.gov.au: 30

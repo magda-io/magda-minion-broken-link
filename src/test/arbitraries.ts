@@ -1,12 +1,12 @@
-import jsc from "magda-typescript-common/src/test/jsverify";
-import { Record } from "magda-typescript-common/src/generated/registry/api";
+import jsc from "jsverify";
+import { Record } from "@magda/minion-sdk";
 import {
     distUrlArb,
     arrayOfSizeArb,
     arbFlatMap,
     recordArbWithDistArbs,
     stringArb
-} from "magda-typescript-common/src/test/arbitraries";
+} from "@magda/arbitraries";
 import urlsFromDataSet from "./urlsFromDataSet";
 import _ from "lodash";
 import URI from "urijs";
