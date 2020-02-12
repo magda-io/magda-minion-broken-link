@@ -102,7 +102,7 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
         let key: string;
         sinon
             .stub(client, "connect")
-            .callsFake(({ host, port }: { host: string; port: number }) => {
+            .callsFake(({ host, port }: Client.Options) => {
                 const keyPort = port !== 21 ? `:${port}` : "";
                 key = `${host}${keyPort}`;
                 if (!clients[key]) {
@@ -113,38 +113,35 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
             });
         sinon
             .stub(client, "on")
-            .callsFake((event: string, callback: () => void) => {
+            .callsFake((event: string | symbol, callback: () => void) => {
                 if (event === "ready") {
                     readyCallback = callback;
                 }
+                return client;
             });
-        sinon
-            .stub(client, "list")
-            .callsFake(
-                (
-                    path: string,
-                    callback: (err: Error, list: string[]) => void
-                ) => {
-                    try {
-                        expect(key).not.to.be.undefined;
-                        const url = `ftp://${key}${path}`;
+        sinon.stub(client, "list").callsFake(((
+            path: string,
+            callback: (err: Error, list: string[]) => void
+        ) => {
+            try {
+                expect(key).not.to.be.undefined;
+                const url = `ftp://${key}${path}`;
 
-                        const success = ftpSuccesses[url];
-                        expect(success).not.to.be.undefined;
+                const success = ftpSuccesses[url];
+                expect(success).not.to.be.undefined;
 
-                        if (success === "success") {
-                            callback(null, ["file"]);
-                        } else if (success === "notfound") {
-                            callback(null, []);
-                        } else {
-                            callback(new Error("Fake error!"), null);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        callback(e, null);
-                    }
+                if (success === "success") {
+                    callback(null, ["file"]);
+                } else if (success === "notfound") {
+                    callback(null, []);
+                } else {
+                    callback(new Error("Fake error!"), null);
                 }
-            );
+            } catch (e) {
+                console.error(e);
+                callback(e, null);
+            }
+        }) as any);
         return client;
     };
 
