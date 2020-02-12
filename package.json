@@ -66,8 +66,9 @@
       "minion": true
     }
   },
-  "_moduleMappings": {
-    "magda-typescript-common/src": "@magda/typescript-common/dist",
-    "magda-minion-framework/src": "@magda/minion-framework/dist"
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged"
+    }
   }
 }
