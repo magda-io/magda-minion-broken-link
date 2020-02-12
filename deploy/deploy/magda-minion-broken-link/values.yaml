@@ -3,7 +3,7 @@ global:
   rollingUpdate: {}
 
 image: 
-  name: "magda-minion-format"
+  name: "magda-minion-broken-link"
   # repository: 
   # tag: 
   # pullPolicy: 
