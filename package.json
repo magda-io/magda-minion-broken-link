@@ -47,7 +47,7 @@
     "@magda/registry-aspects": "^0.0.57-0",
     "@magda/utils": "^0.0.57-0",
     "ftp": "^0.3.10",
-    "lodash": "^4.17.4",
+    "lodash": "^4.17.21",
     "lru-cache": "4.0.2",
     "urijs": "^1.18.12"
   },
