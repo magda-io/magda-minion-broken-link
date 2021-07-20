@@ -49,7 +49,7 @@
     "ftp": "^0.3.10",
     "lodash": "^4.17.4",
     "lru-cache": "4.0.2",
-    "urijs": "^1.18.12"
+    "urijs": "^1.19.7"
   },
   "config": {
     "registryUrl": "http://localhost:6101/v0",
