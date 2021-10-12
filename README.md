@@ -29,3 +29,33 @@ Docker image releases can be found from Docker Hub:
 https://hub.docker.com/r/data61/magda-minion-broken-link/
 
 Development releases (per commit) are also available from [GitHub Registry](https://github.com/magda-io/magda-minion-broken-link/packages) and accessible with access token.
+
+## Requirements
+
+Kubernetes: `>= 1.14.0-0`
+
+| Repository              | Name         | Version       |
+| ----------------------- | ------------ | ------------- |
+| https://charts.magda.io | magda-common | 1.0.0-alpha.4 |
+
+## Values
+
+| Key                          | Type   | Default                                  | Description |
+| ---------------------------- | ------ | ---------------------------------------- | ----------- |
+| cronJobImage.name            | string | `"alpine"`                               |             |
+| cronJobImage.pullPolicy      | string | `"IfNotPresent"`                         |             |
+| cronJobImage.pullSecrets     | bool   | `false`                                  |             |
+| cronJobImage.repository      | string | `"docker.io"`                            |             |
+| cronJobImage.tag             | string | `"latest"`                               |             |
+| defaultAdminUserId           | string | `"00000000-0000-4000-8000-000000000000"` |             |
+| defaultImage.imagePullSecret | bool   | `false`                                  |             |
+| defaultImage.pullPolicy      | string | `"IfNotPresent"`                         |             |
+| defaultImage.repository      | string | `"docker.io/data61"`                     |             |
+| global.image                 | object | `{}`                                     |             |
+| global.minions.image         | object | `{}`                                     |             |
+| global.rollingUpdate         | object | `{}`                                     |             |
+| image.name                   | string | `"magda-minion-broken-link"`             |             |
+| resources.limits.cpu         | string | `"200m"`                                 |             |
+| resources.requests.cpu       | string | `"50m"`                                  |             |
+| resources.requests.memory    | string | `"40Mi"`                                 |             |
+| schedule                     | string | `"0 0 14,28 * *"`                        |             |
