@@ -1,10 +1,10 @@
 apiVersion: v2
 name: magda-minion-broken-link
 description: A Helm chart for Magda Broken Link Minion
-version: "0.0.57-0"
+version: "1.0.0"
 kubeVersion: ">= 1.14.0-0"
 home: "https://github.com/magda-io/magda-minion-broken-link"
-sources: ["https://github.com/magda-io/magda-minion-broken-link"]
+sources: [ "https://github.com/magda-io/magda-minion-broken-link" ]
 annotations:
   magdaModuleType: "minion"
 dependencies:
