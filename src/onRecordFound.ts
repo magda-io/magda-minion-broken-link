@@ -162,7 +162,7 @@ function checkDistributionLink(
     requestOpts: CoreOptions
 ): DistributionLinkCheck[] {
     type DistURL = {
-        url?: uri.URI;
+        url?: URI;
         type: "downloadURL" | "accessURL";
     };
 
@@ -234,7 +234,7 @@ function checkDistributionLink(
 }
 
 function retrieve(
-    parsedURL: uri.URI,
+    parsedURL: URI,
     baseRetryDelay: number,
     retries: number,
     ftpHandler: FTPHandler,
@@ -263,7 +263,7 @@ function retrieve(
 }
 
 function retrieveFtp(
-    parsedURL: uri.URI,
+    parsedURL: URI,
     ftpHandler: FTPHandler
 ): Promise<BrokenLinkAspect> {
     const port = +(parsedURL.port() || 21);

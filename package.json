@@ -11,14 +11,20 @@
     "dev": "run-typescript-in-nodemon src/index.ts",
     "docker-build-local": "create-docker-context-for-node-component --build --push --tag auto --local",
     "docker-build-prod": "create-docker-context-for-node-component --build --push --tag auto",
-    "test": "mocha --require ts-node/register --require tsconfig-paths/register \"src/test/**/*.spec.ts\"",
+    "test": "mocha --require ts-node/register \"src/test/**/*.spec.ts\"",
     "helm-lint": "helm lint deploy/magda-minion-broken-link -f deploy/test-deploy.yaml",
-    "retag-and-push": "retag-and-push"
+    "retag-and-push": "retag-and-push",
+    "helm-docs": "helm-docs -t ./README.md.gotmpl -o ../../README.md",
+    "update-all-charts": "helm dep up ./deploy/magda-minion-broken-link",
+    "add-all-chart-version-changes": "git ls-files -m | grep Chart.yaml | xargs git add && git ls-files -m | grep Chart.lock | xargs git add",
+    "add-all-helm-docs-changes": "yarn helm-docs && git ls-files -m | grep -i readme.md | xargs git add",
+    "version": "yarn update-helm-chart-version && yarn update-all-charts && yarn add-all-chart-version-changes && yarn add-all-helm-docs-changes"
   },
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@magda/scripts": "^0.0.57-0",
+    "@magda/ci-utils": "^1.0.2",
+    "@magda/docker-utils": "^0.0.60",
     "@types/chai": "^4.2.8",
     "@types/ftp": "^0.3.29",
     "@types/lodash": "^4.14.71",
@@ -39,13 +45,14 @@
     "mocha": "^7.0.1",
     "nock": "^9.6.1",
     "sinon": "^8.1.1",
-    "typescript": "^3.7.2",
-    "@magda/arbitraries": "^0.0.57-0"
+    "ts-node": "^9.0.0",
+    "typescript": "^3.9.5",
+    "@magda/arbitraries": "^0.0.60"
   },
   "dependencies": {
-    "@magda/minion-sdk": "^0.0.57-0",
-    "@magda/registry-aspects": "^0.0.57-0",
-    "@magda/utils": "^0.0.57-0",
+    "@magda/minion-sdk": "^0.0.60",
+    "@magda/registry-aspects": "^0.0.60",
+    "@magda/utils": "^0.0.60",
     "ftp": "^0.3.10",
     "lodash": "^4.17.4",
     "lru-cache": "4.0.2",
