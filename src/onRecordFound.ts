@@ -131,6 +131,7 @@ function recordBrokenLinkAspect(
             result.distribution.id,
             "source-link-status",
             aspectData,
+            true,
             theTenantId
         )
         .then(unionToThrowable);

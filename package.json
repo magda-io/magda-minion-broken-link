@@ -11,7 +11,7 @@
     "dev": "run-typescript-in-nodemon src/index.ts",
     "docker-build-local": "create-docker-context-for-node-component --build --push --tag auto --local",
     "docker-build-prod": "create-docker-context-for-node-component --build --push --tag auto",
-    "test": "mocha --require ts-node/register \"src/test/**/*.spec.ts\"",
+    "test": "mocha",
     "helm-lint": "helm lint deploy/magda-minion-broken-link -f deploy/test-deploy.yaml",
     "retag-and-push": "retag-and-push",
     "helm-docs": "helm-docs -t ./README.md.gotmpl -o ../../README.md",

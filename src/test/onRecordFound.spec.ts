@@ -38,7 +38,7 @@ import {
 
 const schema = require("@magda/registry-aspects/source-link-status.schema.json");
 
-describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
+describe("onRecordFound", function(this: Mocha.Suite) {
     this.timeout(20000);
     nock.disableNetConnect();
     const registryUrl = "http://example.com";
@@ -139,7 +139,7 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
                 }
             } catch (e) {
                 console.error(e);
-                callback(e, null);
+                callback(e as Error, null);
             }
         }) as any);
         return client;
@@ -272,7 +272,7 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
                         .put(
                             `/records/${encodeURIComponentWithApost(
                                 dist.id
-                            )}/aspects/source-link-status`,
+                            )}/aspects/source-link-status?merge=true`,
                             (body: BrokenLinkAspect) => {
                                 const validationResult = validate(body);
                                 if (!validationResult) {
@@ -545,7 +545,7 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
                                     .put(
                                         `/records/${encodeURIComponentWithApost(
                                             dist.id
-                                        )}/aspects/source-link-status`,
+                                        )}/aspects/source-link-status?merge=true`,
                                         (response: any) => {
                                             const statusMatch =
                                                 response.status ===
@@ -644,10 +644,13 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
                 (record: Record, failures: number[], delayMs: number) => {
                     beforeEachProperty();
 
+                    const delayConfig = {} as any;
+
                     const distScopes = urlsFromDataSet(record).reduce(
                         (scopeLookup, url) => {
                             const uri = new URI(url);
                             const base = uri.scheme() + "://" + uri.host();
+                            delayConfig[uri.hostname()] = (delayMs + 10) / 1000;
 
                             if (!scopeLookup[base]) {
                                 scopeLookup[base] = nock(base);
@@ -698,7 +701,13 @@ describe("onRecordFound", function(this: Mocha.ISuiteCallbackContext) {
                         .times(allDists.length)
                         .reply(201);
 
-                    return onRecordFound(record, registry, failures.length, 0)
+                    return onRecordFound(
+                        record,
+                        registry,
+                        failures.length,
+                        0,
+                        delayConfig
+                    )
                         .then(() => {
                             _.values(distScopes).forEach(scope => scope.done());
                         })
