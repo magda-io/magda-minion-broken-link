@@ -32,11 +32,11 @@ Development releases (per commit) are also available from [GitHub Registry](http
 
 ## Requirements
 
-Kubernetes: `>= 1.14.0-0`
+Kubernetes: `>= 1.21.0`
 
-| Repository              | Name         | Version       |
-| ----------------------- | ------------ | ------------- |
-| https://charts.magda.io | magda-common | 1.0.0-alpha.4 |
+| Repository                    | Name         | Version |
+| ----------------------------- | ------------ | ------- |
+| oci://ghcr.io/magda-io/charts | magda-common | 2.1.1   |
 
 ## Values
 
