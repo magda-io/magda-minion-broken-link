@@ -1,24 +1,22 @@
-import { CoreOptions } from "request";
-import { request } from "@magda/utils";
-import http from "http";
-import DevNull from "./DevNull";
+import AbortController from "abort-controller";
+import fetch, { Response, RequestInit } from "./fetch";
+import getUserAgent from "./getUserAgent";
+
+// in seconds
+const CONNECTION_TIMEOUT = 120;
 
 /**
  * Depends on statusCode, determine a request is failed or not
  * @param response http.IncomingMessage
  */
-function processResponse(response: http.IncomingMessage) {
+function processResponse(response: Response) {
     if (
-        (response.statusCode >= 200 && response.statusCode <= 299) ||
-        response.statusCode === 429
+        (response.status >= 200 && response.status <= 299) ||
+        response.status === 429
     ) {
-        return response.statusCode;
+        return response.status;
     } else {
-        throw new BadHttpResponseError(
-            response.statusMessage,
-            response,
-            response.statusCode
-        );
+        throw new BadHttpResponseError(response.statusText, response.status);
     }
 }
 
@@ -29,7 +27,7 @@ function processResponse(response: http.IncomingMessage) {
  */
 export async function headRequest(
     url: string,
-    requestOpts: CoreOptions = {}
+    requestOpts: RequestInit = {}
 ): Promise<number> {
     return doRequest(url, "head", requestOpts);
 }
@@ -41,7 +39,7 @@ export async function headRequest(
  */
 export async function getRequest(
     url: string,
-    requestOpts: CoreOptions = {}
+    requestOpts: RequestInit = {}
 ): Promise<number> {
     return doRequest(url, "get", {
         ...requestOpts,
@@ -59,63 +57,42 @@ export async function getRequest(
 export async function doRequest(
     url: string,
     method: "get" | "head",
-    requestOpts: CoreOptions = {}
+    requestOpts: RequestInit = {}
 ): Promise<number> {
-    const devnull = new DevNull();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+        controller.abort();
+    }, CONNECTION_TIMEOUT * 1000);
+
     console.info(`${method} ${url}`);
 
-    let resolveResponse: (number: number) => void;
-    let resolveStreamEnd: (v?: any) => void;
-    let rejectResponse: (error: Error) => void;
-    let rejectStreamEnd: (error: Error) => void;
-
-    const reqPromise: Promise<number> = new Promise((resolve, reject) => {
-        resolveResponse = resolve;
-        rejectResponse = reject;
-    });
-
-    const streamPromise = new Promise((resolve, reject) => {
-        rejectStreamEnd = reject;
-        resolveStreamEnd = resolve;
-    });
-
-    const req = request[method](url, requestOpts)
-        .on("error", err => rejectResponse(err))
-        .on("response", (response: http.IncomingMessage) => {
-            try {
-                console.info(
-                    `Got ${response.statusCode} from ${method} ${url}`
-                );
-
-                resolveResponse(processResponse(response));
-            } catch (e) {
-                rejectResponse(e as Error);
-            }
-        })
-        .on("end", () => {
-            resolveStreamEnd();
+    let res: Response;
+    try {
+        res = await fetch(url, {
+            method,
+            redirect: "follow",
+            headers: {
+                ...(requestOpts?.headers ? requestOpts.headers : {}),
+                "User-Agent": await getUserAgent()
+            },
+            signal: controller.signal
         });
-
-    req.pipe(devnull).on("error", rejectStreamEnd);
-    req.on("error", rejectStreamEnd);
-
-    const [responseCode] = await Promise.all([reqPromise, streamPromise]);
-
-    return responseCode as number;
+        console.info(`Got ${res.status} from ${method} ${url}`);
+        return processResponse(res);
+    } catch (e) {
+        throw e;
+    } finally {
+        controller.abort();
+        clearTimeout(timeout);
+    }
 }
 
 export class BadHttpResponseError extends Error {
-    public response: http.IncomingMessage;
     public httpStatusCode: number;
 
-    constructor(
-        message?: string,
-        response?: http.IncomingMessage,
-        httpStatusCode?: number
-    ) {
+    constructor(message?: string, httpStatusCode?: number) {
         super(message);
         this.message = message;
-        this.response = response;
         this.httpStatusCode = httpStatusCode;
         this.stack = new Error().stack;
     }
