@@ -38,7 +38,7 @@ import {
 
 const schema = require("@magda/registry-aspects/source-link-status.schema.json");
 
-describe("onRecordFound", function(this: Mocha.Suite) {
+describe("onRecordFound", function (this: Mocha.Suite) {
     this.timeout(20000);
     nock.disableNetConnect();
     const registryUrl = "http://example.com";
@@ -90,6 +90,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
 
     const afterEachProperty = () => {
         nock.cleanAll();
+        nock.abortPendingRequests();
     };
 
     /**
@@ -154,241 +155,248 @@ describe("onRecordFound", function(this: Mocha.Suite) {
      * recorded on a by-distribution basis as link status as well as on a by-record
      * basis as a part of dataset quality.
      */
-    it("Should correctly record link statuses", function() {
+    it("Should correctly record link statuses", function () {
         const ajv = new Ajv();
         const validate = ajv.compile(schema);
         return jsc.assert(
-            jsc.forall(recordArbWithSuccesses, jsc.integer(1, 100), function(
-                { record, successLookup, disallowHead },
-                streamWaitTime
-            ) {
-                beforeEachProperty();
+            jsc.forall(
+                recordArbWithSuccesses,
+                jsc.integer(1, 100),
+                function (
+                    { record, successLookup, disallowHead },
+                    streamWaitTime
+                ) {
+                    beforeEachProperty();
 
-                // Tell the FTP server to return success/failure for the various FTP
-                // paths with this dodgy method. Note that because the FTP server can
-                // only see paths and not host, we only send it the path of the req.
-                ftpSuccesses = _.pickBy(successLookup, (value, url) =>
-                    hasProtocol(url, "ftp")
-                );
+                    // Tell the FTP server to return success/failure for the various FTP
+                    // paths with this dodgy method. Note that because the FTP server can
+                    // only see paths and not host, we only send it the path of the req.
+                    ftpSuccesses = _.pickBy(successLookup, (value, url) =>
+                        hasProtocol(url, "ftp")
+                    );
 
-                const allDists =
-                    record.aspects["dataset-distributions"].distributions;
+                    const allDists =
+                        record.aspects["dataset-distributions"].distributions;
 
-                const httpDistUrls = _(urlsFromDataSet(record))
-                    .filter((url: string) => hasProtocol(url, "http"))
-                    .map((url: string) => ({
-                        url,
-                        success: successLookup[url]
-                    }))
-                    .value();
+                    const httpDistUrls = _(urlsFromDataSet(record))
+                        .filter((url: string) => hasProtocol(url, "http"))
+                        .map((url: string) => ({
+                            url,
+                            success: successLookup[url]
+                        }))
+                        .value();
 
-                // Set up a nock scope for every HTTP URL - the minion will actually
-                // attempt to download these but it'll be intercepted by nock.
-                const distScopes = httpDistUrls.map(
-                    ({
-                        url,
-                        success
-                    }: {
-                        url: string;
-                        success: CheckResult;
-                    }) => {
-                        const scope = nock(url, {
-                            reqheaders: { "User-Agent": /magda.*/ }
-                        });
+                    // Set up a nock scope for every HTTP URL - the minion will actually
+                    // attempt to download these but it'll be intercepted by nock.
+                    const distScopes = httpDistUrls.map(
+                        ({
+                            url,
+                            success
+                        }: {
+                            url: string;
+                            success: CheckResult;
+                        }) => {
+                            const scope = nock(url, {
+                                reqheaders: { "User-Agent": /magda.*/ }
+                            });
 
-                        const scopeHead = scope.head(
-                            url.endsWith("/") ? "/" : ""
-                        );
-                        const scopeGet = scope.get(
-                            url.endsWith("/") ? "/" : ""
-                        );
+                            const scopeHead = scope.head(
+                                url.endsWith("/") ? "/" : ""
+                            );
+                            const scopeGet = scope.get(
+                                url.endsWith("/") ? "/" : ""
+                            );
 
-                        if (success !== "error") {
-                            if (!disallowHead && success === "success") {
-                                scopeHead.reply(200);
-                            } else {
-                                if (disallowHead) {
-                                    // Not everything returns a 405 for HEAD not allowed :()
-                                    scopeHead.reply(
-                                        success === "success" ? 405 : 400
-                                    );
+                            if (success !== "error") {
+                                if (!disallowHead && success === "success") {
+                                    scopeHead.reply(200);
                                 } else {
-                                    scopeHead.replyWithError("fail");
-                                }
-
-                                if (success === "success") {
-                                    scopeGet.reply(200, () => {
-                                        const s = new RandomStream(
-                                            streamWaitTime
+                                    if (disallowHead) {
+                                        // Not everything returns a 405 for HEAD not allowed :()
+                                        scopeHead.reply(
+                                            success === "success" ? 405 : 400
                                         );
+                                    } else {
+                                        scopeHead.replyWithError("fail");
+                                    }
 
-                                        return s;
-                                    });
-                                } else {
-                                    scopeGet.reply(404);
+                                    if (success === "success") {
+                                        scopeGet.reply(200, () => {
+                                            const s = new RandomStream(
+                                                streamWaitTime
+                                            );
+
+                                            return s;
+                                        });
+                                    } else {
+                                        scopeGet.reply(404);
+                                    }
                                 }
+                            } else {
+                                scopeHead.replyWithError("fail");
+                                scopeGet.replyWithError("fail");
                             }
-                        } else {
-                            scopeHead.replyWithError("fail");
-                            scopeGet.replyWithError("fail");
+
+                            return scope;
                         }
+                    );
 
-                        return scope;
-                    }
-                );
+                    allDists.forEach((dist: Record) => {
+                        const { downloadURL, accessURL } =
+                            dist.aspects["dcat-distribution-strings"];
+                        const success =
+                            successLookup[downloadURL] === "success"
+                                ? "success"
+                                : successLookup[accessURL];
 
-                allDists.forEach((dist: Record) => {
-                    const { downloadURL, accessURL } = dist.aspects[
-                        "dcat-distribution-strings"
-                    ];
-                    const success =
-                        successLookup[downloadURL] === "success"
-                            ? "success"
-                            : successLookup[accessURL];
+                        const isUnknownProtocol = (url: string) => {
+                            if (!url) {
+                                return false;
+                            }
+                            const protocol = new URI(url).protocol();
+                            return (
+                                protocol &&
+                                protocol.length > 0 &&
+                                KNOWN_PROTOCOLS.indexOf(protocol) === -1
+                            );
+                        };
 
-                    const isUnknownProtocol = (url: string) => {
-                        if (!url) {
-                            return false;
-                        }
-                        const protocol = new URI(url).protocol();
-                        return (
-                            protocol &&
-                            protocol.length > 0 &&
-                            KNOWN_PROTOCOLS.indexOf(protocol) === -1
-                        );
-                    };
+                        const downloadUnknown = isUnknownProtocol(downloadURL);
+                        const accessUnknown = isUnknownProtocol(accessURL);
 
-                    const downloadUnknown = isUnknownProtocol(downloadURL);
-                    const accessUnknown = isUnknownProtocol(accessURL);
+                        const result =
+                            success === "success"
+                                ? "active"
+                                : downloadUnknown || accessUnknown
+                                ? "unknown"
+                                : "broken";
 
-                    const result =
-                        success === "success"
-                            ? "active"
-                            : downloadUnknown || accessUnknown
-                            ? "unknown"
-                            : "broken";
+                        registryScope
+                            .put(
+                                `/records/${encodeURIComponentWithApost(
+                                    dist.id
+                                )}/aspects/source-link-status?merge=true`,
+                                (body: BrokenLinkAspect) => {
+                                    const validationResult = validate(body);
+                                    if (!validationResult) {
+                                        throw new Error(
+                                            "Json schema validation error: \n" +
+                                                validate.errors
+                                                    .map(
+                                                        (error) =>
+                                                            `${error.dataPath}: ${error.message}`
+                                                    )
+                                                    .join("\n")
+                                        );
+                                    }
 
-                    registryScope
-                        .put(
-                            `/records/${encodeURIComponentWithApost(
-                                dist.id
-                            )}/aspects/source-link-status?merge=true`,
-                            (body: BrokenLinkAspect) => {
-                                const validationResult = validate(body);
-                                if (!validationResult) {
-                                    throw new Error(
-                                        "Json schema validation error: \n" +
-                                            validate.errors
-                                                .map(
-                                                    error =>
-                                                        `${error.dataPath}: ${error.message}`
-                                                )
-                                                .join("\n")
+                                    const doesStatusMatch =
+                                        body.status === result;
+
+                                    const isDownloadUrlHttp = hasProtocol(
+                                        downloadURL,
+                                        "http"
+                                    );
+                                    const isAccessUrlHttp = hasProtocol(
+                                        accessURL,
+                                        "http"
+                                    );
+
+                                    const isDownloadUrlHttpSuccess =
+                                        isDownloadUrlHttp &&
+                                        successLookup[downloadURL] ===
+                                            "success";
+
+                                    const isDownloadUrlFtpSuccess =
+                                        !isDownloadUrlHttp &&
+                                        successLookup[downloadURL] ===
+                                            "success";
+
+                                    const isAccessURLHttpSuccess =
+                                        isAccessUrlHttp &&
+                                        successLookup[accessURL] === "success";
+
+                                    const isHttpSuccess: boolean =
+                                        isDownloadUrlHttpSuccess ||
+                                        (!isDownloadUrlFtpSuccess &&
+                                            isAccessURLHttpSuccess);
+
+                                    const downloadUri =
+                                        parseUriSafe(downloadURL);
+                                    const isDownloadUrlDefined =
+                                        _.isUndefined(downloadUri) ||
+                                        !downloadUri.scheme() ||
+                                        parseUriSafe(downloadURL).scheme()
+                                            .length === 0;
+
+                                    const is404: boolean =
+                                        result === "broken" &&
+                                        ((isDownloadUrlHttp &&
+                                            successLookup[downloadURL] ===
+                                                "notfound") ||
+                                            (isDownloadUrlDefined &&
+                                                isAccessUrlHttp &&
+                                                successLookup[accessURL] ===
+                                                    "notfound"));
+
+                                    const doesResponseCodeMatch = ((
+                                        code?: number
+                                    ) => {
+                                        if (isHttpSuccess) {
+                                            return code === 200;
+                                        } else if (is404) {
+                                            return code === 404;
+                                        } else {
+                                            return _.isUndefined(code);
+                                        }
+                                    })(body.httpStatusCode);
+
+                                    const doesErrorMatch = ((arg?: Error) =>
+                                        success === "success"
+                                            ? _.isUndefined(arg)
+                                            : !_.isUndefined(arg))(
+                                        body.errorDetails
+                                    );
+
+                                    // console.log(
+                                    //     `${
+                                    //         dist.id
+                                    //     }: ${doesStatusMatch} && ${doesResponseCodeMatch} && ${doesErrorMatch} `
+                                    // );
+
+                                    return (
+                                        doesStatusMatch &&
+                                        doesResponseCodeMatch &&
+                                        doesErrorMatch
                                     );
                                 }
-
-                                const doesStatusMatch = body.status === result;
-
-                                const isDownloadUrlHttp = hasProtocol(
-                                    downloadURL,
-                                    "http"
-                                );
-                                const isAccessUrlHttp = hasProtocol(
-                                    accessURL,
-                                    "http"
-                                );
-
-                                const isDownloadUrlHttpSuccess =
-                                    isDownloadUrlHttp &&
-                                    successLookup[downloadURL] === "success";
-
-                                const isDownloadUrlFtpSuccess =
-                                    !isDownloadUrlHttp &&
-                                    successLookup[downloadURL] === "success";
-
-                                const isAccessURLHttpSuccess =
-                                    isAccessUrlHttp &&
-                                    successLookup[accessURL] === "success";
-
-                                const isHttpSuccess: boolean =
-                                    isDownloadUrlHttpSuccess ||
-                                    (!isDownloadUrlFtpSuccess &&
-                                        isAccessURLHttpSuccess);
-
-                                const downloadUri = parseUriSafe(downloadURL);
-                                const isDownloadUrlDefined =
-                                    _.isUndefined(downloadUri) ||
-                                    !downloadUri.scheme() ||
-                                    parseUriSafe(downloadURL).scheme()
-                                        .length === 0;
-
-                                const is404: boolean =
-                                    result === "broken" &&
-                                    ((isDownloadUrlHttp &&
-                                        successLookup[downloadURL] ===
-                                            "notfound") ||
-                                        (isDownloadUrlDefined &&
-                                            isAccessUrlHttp &&
-                                            successLookup[accessURL] ===
-                                                "notfound"));
-
-                                const doesResponseCodeMatch = ((
-                                    code?: number
-                                ) => {
-                                    if (isHttpSuccess) {
-                                        return code === 200;
-                                    } else if (is404) {
-                                        return code === 404;
-                                    } else {
-                                        return _.isUndefined(code);
-                                    }
-                                })(body.httpStatusCode);
-
-                                const doesErrorMatch = ((arg?: Error) =>
-                                    success === "success"
-                                        ? _.isUndefined(arg)
-                                        : !_.isUndefined(arg))(
-                                    body.errorDetails
-                                );
-
-                                // console.log(
-                                //     `${
-                                //         dist.id
-                                //     }: ${doesStatusMatch} && ${doesResponseCodeMatch} && ${doesErrorMatch} `
-                                // );
-
-                                return (
-                                    doesStatusMatch &&
-                                    doesResponseCodeMatch &&
-                                    doesErrorMatch
-                                );
-                            }
-                        )
-                        .reply(201);
-                });
-
-                return onRecordFound(
-                    record,
-                    registry,
-                    0,
-                    0,
-                    {},
-                    {},
-                    fakeFtpHandler
-                )
-                    .then(() => {
-                        distScopes.forEach(scope => scope.done());
-                        registryScope.done();
-                    })
-                    .then(() => {
-                        afterEachProperty();
-                        return true;
-                    })
-                    .catch(e => {
-                        afterEachProperty();
-                        throw e;
+                            )
+                            .reply(201);
                     });
-            }),
+
+                    return onRecordFound(
+                        record,
+                        registry,
+                        0,
+                        0,
+                        {},
+                        {},
+                        fakeFtpHandler
+                    )
+                        .then(() => {
+                            distScopes.forEach((scope) => scope.done());
+                            registryScope.done();
+                        })
+                        .then(() => {
+                            afterEachProperty();
+                            return true;
+                        })
+                        .catch((e) => {
+                            afterEachProperty();
+                            throw e;
+                        });
+                }
+            ),
             {
                 tests: 500
             }
@@ -415,7 +423,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
             caption: string,
             result: "success" | "fail429" | "failNormal"
         ) => {
-            it(caption, function() {
+            it(caption, function () {
                 const retryCountArb = jsc.integer(0, 5);
 
                 type FailuresArbResult = {
@@ -429,62 +437,66 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                  * after each inner array is finished a 429 will be returned, then the
                  * next array of error codes will be returned.
                  */
-                const failuresArb: jsc.Arbitrary<FailuresArbResult> = arbFlatMap<
-                    number,
-                    FailuresArbResult
-                >(
-                    retryCountArb,
-                    (retryCount: number) => {
-                        /** Generates how many 429 codes will be returned */
-                        const count429Arb =
-                            result === "fail429"
-                                ? jsc.constant(retryCount)
-                                : jsc.integer(0, retryCount);
+                const failuresArb: jsc.Arbitrary<FailuresArbResult> =
+                    arbFlatMap<number, FailuresArbResult>(
+                        retryCountArb,
+                        (retryCount: number) => {
+                            /** Generates how many 429 codes will be returned */
+                            const count429Arb =
+                                result === "fail429"
+                                    ? jsc.constant(retryCount)
+                                    : jsc.integer(0, retryCount);
 
-                        /** Generates how long the array of non-429 failures should be. */
-                        const failureCodeLengthArb = jsc.integer(0, retryCount);
+                            /** Generates how long the array of non-429 failures should be. */
+                            const failureCodeLengthArb = jsc.integer(
+                                0,
+                                retryCount
+                            );
 
-                        const allResultsArb = arbFlatMap<number, number[]>(
-                            count429Arb,
-                            count429s =>
-                                arrayOfSizeArb(
-                                    count429s + 1,
-                                    failureCodeLengthArb
-                                ),
-                            (failureCodeArr: number[]) => failureCodeArr.length
-                        ).flatMap<number[][]>(
-                            (failureCodeArrSizes: number[]) => {
-                                const failureCodeArbs = failureCodeArrSizes.map(
-                                    size => arrayOfSizeArb(size, failureCodeArb)
-                                );
+                            const allResultsArb = arbFlatMap<number, number[]>(
+                                count429Arb,
+                                (count429s) =>
+                                    arrayOfSizeArb(
+                                        count429s + 1,
+                                        failureCodeLengthArb
+                                    ),
+                                (failureCodeArr: number[]) =>
+                                    failureCodeArr.length
+                            ).flatMap<number[][]>(
+                                (failureCodeArrSizes: number[]) => {
+                                    const failureCodeArbs =
+                                        failureCodeArrSizes.map((size) =>
+                                            arrayOfSizeArb(size, failureCodeArb)
+                                        );
 
-                                if (result === "failNormal") {
-                                    failureCodeArbs[
-                                        failureCodeArbs.length - 1
-                                    ] = arrayOfSizeArb(
-                                        retryCount + 1,
-                                        failureCodeArb
-                                    );
-                                }
+                                    if (result === "failNormal") {
+                                        failureCodeArbs[
+                                            failureCodeArbs.length - 1
+                                        ] = arrayOfSizeArb(
+                                            retryCount + 1,
+                                            failureCodeArb
+                                        );
+                                    }
 
-                                return failureCodeArrSizes.length > 0
-                                    ? jsc.tuple(failureCodeArbs)
-                                    : jsc.constant([]);
-                            },
-                            failures => failures.map(inner => inner.length)
-                        );
+                                    return failureCodeArrSizes.length > 0
+                                        ? jsc.tuple(failureCodeArbs)
+                                        : jsc.constant([]);
+                                },
+                                (failures) =>
+                                    failures.map((inner) => inner.length)
+                            );
 
-                        const combined = jsc.record<FailuresArbResult>({
-                            retryCount: jsc.constant(retryCount),
-                            allResults: allResultsArb
-                        });
+                            const combined = jsc.record<FailuresArbResult>({
+                                retryCount: jsc.constant(retryCount),
+                                allResults: allResultsArb
+                            });
 
-                        return combined;
-                    },
-                    ({ retryCount }: FailuresArbResult) => {
-                        return retryCount;
-                    }
-                );
+                            return combined;
+                        },
+                        ({ retryCount }: FailuresArbResult) => {
+                            return retryCount;
+                        }
+                    );
 
                 return jsc.assert(
                     jsc.forall(
@@ -497,11 +509,11 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                             beforeEachProperty();
 
                             const distScopes = urlsFromDataSet(record).map(
-                                url => {
+                                (url) => {
                                     const scope = nock(url); //.log(console.log);
 
                                     allResults.forEach((failureCodes, i) => {
-                                        failureCodes.forEach(failureCode => {
+                                        failureCodes.forEach((failureCode) => {
                                             scope
                                                 .head(
                                                     url.endsWith("/") ? "/" : ""
@@ -581,13 +593,13 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                             )
                                 .then(() => {
                                     registryScope.done();
-                                    distScopes.forEach(scope => scope.done());
+                                    distScopes.forEach((scope) => scope.done());
                                 })
                                 .then(() => {
                                     afterEachProperty();
                                     return true;
                                 })
-                                .catch(e => {
+                                .catch((e) => {
                                     afterEachProperty();
                                     throw e;
                                 });
@@ -614,7 +626,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
         );
     });
 
-    it("Should only try to make one request per host at a time", function() {
+    it("Should only try to make one request per host at a time", function () {
         const urlArb = (jsc as any).nonshrink(
             distUrlArb({
                 schemeArb: jsc.elements(["http", "https"]),
@@ -624,9 +636,9 @@ describe("onRecordFound", function(this: Mocha.Suite) {
 
         const thisRecordArb = jsc.suchthat(
             recordArbWithDistArbs({ url: urlArb }),
-            record => {
+            (record) => {
                 const urls: string[] = urlsFromDataSet(record);
-                const hosts: string[] = urls.map(url => {
+                const hosts: string[] = urls.map((url) => {
                     const uri = new URI(url);
 
                     return uri.scheme() + "://" + uri.host();
@@ -658,7 +670,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
 
                             const scope = scopeLookup[base];
 
-                            failures.forEach(failureCode => {
+                            failures.forEach((failureCode) => {
                                 scope
                                     .head(uri.path())
                                     .delay(delayMs)
@@ -670,10 +682,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                                     .reply(failureCode);
                             });
 
-                            scope
-                                .head(uri.path())
-                                .delay(delayMs)
-                                .reply(200);
+                            scope.head(uri.path()).delay(delayMs).reply(200);
                             return scopeLookup;
                         },
                         {} as { [host: string]: nock.Scope }
@@ -696,10 +705,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                     const allDists =
                         record.aspects["dataset-distributions"].distributions;
 
-                    registryScope
-                        .put(/.*/)
-                        .times(allDists.length)
-                        .reply(201);
+                    registryScope.put(/.*/).times(allDists.length).reply(201);
 
                     return onRecordFound(
                         record,
@@ -709,13 +715,15 @@ describe("onRecordFound", function(this: Mocha.Suite) {
                         delayConfig
                     )
                         .then(() => {
-                            _.values(distScopes).forEach(scope => scope.done());
+                            _.values(distScopes).forEach((scope) =>
+                                scope.done()
+                            );
                         })
                         .then(() => {
                             afterEachProperty();
                             return true;
                         })
-                        .catch(e => {
+                        .catch((e) => {
                             afterEachProperty();
                             throw e;
                         });
@@ -741,7 +749,7 @@ describe("onRecordFound", function(this: Mocha.Suite) {
     jsc.property(
         "Should do nothing if no distributions",
         emptyRecordArb,
-        record => {
+        (record) => {
             beforeEachProperty();
 
             return onRecordFound(record, registry).then(() => {

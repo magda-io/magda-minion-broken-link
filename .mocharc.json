@@ -1,5 +1,6 @@
 {
     "extension": ["ts"],
+    "asyncOnly": true,
     "spec": "src/test/**/*.spec.ts",
     "require": "ts-node/register"
 }
