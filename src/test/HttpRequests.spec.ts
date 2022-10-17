@@ -25,7 +25,7 @@ describe("Test HttpRequests.ts", () => {
     let currentTimeout: number = 0;
     before(() => {
         currentTimeout = getConnectionTimeout();
-        setConnectionTimeout(0.05);
+        setConnectionTimeout(0.5);
         nock.disableNetConnect();
         nock.emitter.on("no match", onMatchFail);
     });
