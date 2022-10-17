@@ -2,7 +2,13 @@ import {} from "mocha";
 import nock from "nock";
 import jsc from "jsverify";
 import { expect } from "chai";
-import { headRequest, getRequest, BadHttpResponseError } from "../HttpRequests";
+import {
+    headRequest,
+    getRequest,
+    BadHttpResponseError,
+    setConnectionTimeout,
+    getConnectionTimeout
+} from "../HttpRequests";
 import RandomStream from "./RandomStream";
 
 const onMatchFail = (req: any, interceptor: any) => {
@@ -16,12 +22,16 @@ const onMatchFail = (req: any, interceptor: any) => {
 const errorCodeArb = jsc.oneof([jsc.integer(300, 428), jsc.integer(430, 600)]);
 
 describe("Test HttpRequests.ts", () => {
+    let currentTimeout: number = 0;
     before(() => {
+        currentTimeout = getConnectionTimeout();
+        setConnectionTimeout(0.05);
         nock.disableNetConnect();
         nock.emitter.on("no match", onMatchFail);
     });
 
     after(() => {
+        setConnectionTimeout(currentTimeout);
         nock.emitter.removeListener("no match", onMatchFail);
         nock.cleanAll();
         nock.abortPendingRequests();

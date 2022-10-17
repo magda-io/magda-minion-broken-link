@@ -3,7 +3,15 @@ import fetch, { Response, RequestInit } from "./fetch";
 import getUserAgent from "./getUserAgent";
 
 // in seconds
-const CONNECTION_TIMEOUT = 120;
+let CONNECTION_TIMEOUT = 31;
+
+export function setConnectionTimeout(timeout: number) {
+    CONNECTION_TIMEOUT = timeout;
+}
+
+export function getConnectionTimeout() {
+    return CONNECTION_TIMEOUT;
+}
 
 /**
  * Depends on statusCode, determine a request is failed or not
@@ -94,6 +102,5 @@ export class BadHttpResponseError extends Error {
         super(message);
         this.message = message;
         this.httpStatusCode = httpStatusCode;
-        this.stack = new Error().stack;
     }
 }

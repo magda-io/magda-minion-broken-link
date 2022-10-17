@@ -16,7 +16,7 @@ function randomInt(min: number, max: number) {
 
 describe("Test getUrlWaitTime.ts", () => {
     describe("getHostWaitTime", () => {
-        it("should return waitTime set for a domain if available", () => {
+        it("should return waitTime set for a domain if available", async () => {
             return jsc.assert(
                 jsc.forall(jsc.nestring, jsc.integer(1), (host, waitTime) => {
                     const domainWaitTimeConfig = {
@@ -30,7 +30,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return global default waitTime for a domain if not set", () => {
+        it("should return global default waitTime for a domain if not set", async () => {
             return jsc.assert(
                 jsc.forall(jsc.nestring, jsc.integer(1), (host, waitTime) => {
                     const domainWaitTimeConfig = {
@@ -67,7 +67,7 @@ describe("Test getUrlWaitTime.ts", () => {
             clock.restore();
         });
 
-        it("should return 0 if it's the first time for the domain", () => {
+        it("should return 0 if it's the first time for the domain", async () => {
             return jsc.assert(
                 jsc.forall(
                     urlArb,
@@ -91,127 +91,143 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return waitTime x 1 set for a domain if call the second time immediately", () => {
+        it("should return waitTime x 1 set for a domain if call the second time immediately", async () => {
             return jsc.assert(
-                jsc.forall(urlArb, jsc.integer(1, 99999), async function(
-                    url: string,
-                    domainWaitTime: number //--- seconds
-                ) {
-                    clearDomainAccessTimeStore();
+                jsc.forall(
+                    urlArb,
+                    jsc.integer(1, 99999),
+                    async function (
+                        url: string,
+                        domainWaitTime: number //--- seconds
+                    ) {
+                        clearDomainAccessTimeStore();
 
-                    const uri = new URI(url);
-                    const host = uri.hostname();
-                    const domainWaitTimeConfig = {
-                        [host]: domainWaitTime
-                    };
+                        const uri = new URI(url);
+                        const host = uri.hostname();
+                        const domainWaitTimeConfig = {
+                            [host]: domainWaitTime
+                        };
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(domainWaitTime * 1000);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(domainWaitTime * 1000);
 
-                    return true;
-                })
+                        return true;
+                    }
+                )
             );
         });
 
-        it("should return 0 after delayed domainWaitTime before call the second time", () => {
+        it("should return 0 after delayed domainWaitTime before call the second time", async () => {
             return jsc.assert(
-                jsc.forall(urlArb, jsc.integer(1, 200), async function(
-                    url: string,
-                    domainWaitTime: number //--- seconds
-                ) {
-                    clearDomainAccessTimeStore();
+                jsc.forall(
+                    urlArb,
+                    jsc.integer(1, 200),
+                    async function (
+                        url: string,
+                        domainWaitTime: number //--- seconds
+                    ) {
+                        clearDomainAccessTimeStore();
 
-                    const uri = new URI(url);
-                    const host = uri.hostname();
-                    const domainWaitTimeConfig = {
-                        [host]: domainWaitTime
-                    };
+                        const uri = new URI(url);
+                        const host = uri.hostname();
+                        const domainWaitTimeConfig = {
+                            [host]: domainWaitTime
+                        };
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    clock.tick(domainWaitTime * 1000);
+                        clock.tick(domainWaitTime * 1000);
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    return true;
-                })
+                        return true;
+                    }
+                )
             );
         });
 
-        it("should return (domainWaitTime - `Random Delayed Time`) after delayed `Random Delayed Time` (lower than `domainWaitTime`) before call the second time", () => {
+        it("should return (domainWaitTime - `Random Delayed Time`) after delayed `Random Delayed Time` (lower than `domainWaitTime`) before call the second time", async () => {
             return jsc.assert(
-                jsc.forall(urlArb, jsc.integer(1, 200), async function(
-                    url: string,
-                    domainWaitTime: number //--- seconds
-                ) {
-                    clearDomainAccessTimeStore();
+                jsc.forall(
+                    urlArb,
+                    jsc.integer(1, 200),
+                    async function (
+                        url: string,
+                        domainWaitTime: number //--- seconds
+                    ) {
+                        clearDomainAccessTimeStore();
 
-                    const uri = new URI(url);
-                    const host = uri.hostname();
-                    const domainWaitTimeConfig = {
-                        [host]: domainWaitTime
-                    };
+                        const uri = new URI(url);
+                        const host = uri.hostname();
+                        const domainWaitTimeConfig = {
+                            [host]: domainWaitTime
+                        };
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    const randomWaitTime = randomInt(
-                        1,
-                        domainWaitTime * 1000 - 1
-                    );
+                        const randomWaitTime = randomInt(
+                            1,
+                            domainWaitTime * 1000 - 1
+                        );
 
-                    clock.tick(randomWaitTime);
+                        clock.tick(randomWaitTime);
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(domainWaitTime * 1000 - randomWaitTime);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(domainWaitTime * 1000 - randomWaitTime);
 
-                    return true;
-                })
+                        return true;
+                    }
+                )
             );
         });
 
-        it("should return 0 after delayed `Random Delayed Time` (higher than `domainWaitTime`) before call the second time", () => {
+        it("should return 0 after delayed `Random Delayed Time` (higher than `domainWaitTime`) before call the second time", async () => {
             return jsc.assert(
-                jsc.forall(urlArb, jsc.integer(1, 200), async function(
-                    url: string,
-                    domainWaitTime: number //--- seconds
-                ) {
-                    clearDomainAccessTimeStore();
+                jsc.forall(
+                    urlArb,
+                    jsc.integer(1, 200),
+                    async function (
+                        url: string,
+                        domainWaitTime: number //--- seconds
+                    ) {
+                        clearDomainAccessTimeStore();
 
-                    const uri = new URI(url);
-                    const host = uri.hostname();
-                    const domainWaitTimeConfig = {
-                        [host]: domainWaitTime
-                    };
+                        const uri = new URI(url);
+                        const host = uri.hostname();
+                        const domainWaitTimeConfig = {
+                            [host]: domainWaitTime
+                        };
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    const randomWaitTime = randomInt(
-                        domainWaitTime * 1000 + 1,
-                        domainWaitTime * 1000 * 2
-                    );
+                        const randomWaitTime = randomInt(
+                            domainWaitTime * 1000 + 1,
+                            domainWaitTime * 1000 * 2
+                        );
 
-                    clock.tick(randomWaitTime);
+                        clock.tick(randomWaitTime);
 
-                    expect(
-                        getUrlWaitTime(url, domainWaitTimeConfig)
-                    ).to.be.equal(0);
+                        expect(
+                            getUrlWaitTime(url, domainWaitTimeConfig)
+                        ).to.be.equal(0);
 
-                    return true;
-                })
+                        return true;
+                    }
+                )
             );
         });
     });
