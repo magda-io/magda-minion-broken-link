@@ -16,7 +16,7 @@ function randomInt(min: number, max: number) {
 
 describe("Test getUrlWaitTime.ts", () => {
     describe("getHostWaitTime", () => {
-        it("should return waitTime set for a domain if available", () => {
+        it("should return waitTime set for a domain if available", async () => {
             return jsc.assert(
                 jsc.forall(jsc.nestring, jsc.integer(1), (host, waitTime) => {
                     const domainWaitTimeConfig = {
@@ -30,7 +30,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return global default waitTime for a domain if not set", () => {
+        it("should return global default waitTime for a domain if not set", async () => {
             return jsc.assert(
                 jsc.forall(jsc.nestring, jsc.integer(1), (host, waitTime) => {
                     const domainWaitTimeConfig = {
@@ -67,7 +67,7 @@ describe("Test getUrlWaitTime.ts", () => {
             clock.restore();
         });
 
-        it("should return 0 if it's the first time for the domain", () => {
+        it("should return 0 if it's the first time for the domain", async () => {
             return jsc.assert(
                 jsc.forall(
                     urlArb,
@@ -91,7 +91,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return waitTime x 1 set for a domain if call the second time immediately", () => {
+        it("should return waitTime x 1 set for a domain if call the second time immediately", async () => {
             return jsc.assert(
                 jsc.forall(urlArb, jsc.integer(1, 99999), async function(
                     url: string,
@@ -118,7 +118,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return 0 after delayed domainWaitTime before call the second time", () => {
+        it("should return 0 after delayed domainWaitTime before call the second time", async () => {
             return jsc.assert(
                 jsc.forall(urlArb, jsc.integer(1, 200), async function(
                     url: string,
@@ -147,7 +147,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return (domainWaitTime - `Random Delayed Time`) after delayed `Random Delayed Time` (lower than `domainWaitTime`) before call the second time", () => {
+        it("should return (domainWaitTime - `Random Delayed Time`) after delayed `Random Delayed Time` (lower than `domainWaitTime`) before call the second time", async () => {
             return jsc.assert(
                 jsc.forall(urlArb, jsc.integer(1, 200), async function(
                     url: string,
@@ -181,7 +181,7 @@ describe("Test getUrlWaitTime.ts", () => {
             );
         });
 
-        it("should return 0 after delayed `Random Delayed Time` (higher than `domainWaitTime`) before call the second time", () => {
+        it("should return 0 after delayed `Random Delayed Time` (higher than `domainWaitTime`) before call the second time", async () => {
             return jsc.assert(
                 jsc.forall(urlArb, jsc.integer(1, 200), async function(
                     url: string,
