@@ -50,7 +50,7 @@ Kubernetes: `>= 1.21.0`
 | defaultAdminUserId           | string | `"00000000-0000-4000-8000-000000000000"` |             |
 | defaultImage.imagePullSecret | bool   | `false`                                  |             |
 | defaultImage.pullPolicy      | string | `"IfNotPresent"`                         |             |
-| defaultImage.repository      | string | `"docker.io/data61"`                     |             |
+| defaultImage.repository      | string | `"ghcr.io/magda-io"`                     |             |
 | global.image                 | object | `{}`                                     |             |
 | global.minions.image         | object | `{}`                                     |             |
 | global.rollingUpdate         | object | `{}`                                     |             |
