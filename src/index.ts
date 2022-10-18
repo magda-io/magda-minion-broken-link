@@ -44,6 +44,7 @@ function sleuthBrokenLinks() {
         optionalAspects: [],
         async: true,
         writeAspectDefs: [brokenLinkAspectDef],
+        dereference: true,
         onRecordFound: (record, registry) =>
             onRecordFound(
                 record,
