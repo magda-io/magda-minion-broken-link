@@ -65,7 +65,7 @@ export async function doRequest(
     console.info(`${method} ${url}`);
 
     let resolveResponse: (number: number) => void;
-    let resolveStreamEnd: () => void;
+    let resolveStreamEnd: (v?: any) => void;
     let rejectResponse: (error: Error) => void;
     let rejectStreamEnd: (error: Error) => void;
 
@@ -89,7 +89,7 @@ export async function doRequest(
 
                 resolveResponse(processResponse(response));
             } catch (e) {
-                rejectResponse(e);
+                rejectResponse(e as Error);
             }
         })
         .on("end", () => {

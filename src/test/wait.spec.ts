@@ -18,7 +18,7 @@ describe("wait function", () => {
         });
     });
 
-    it("should wait around `waitTime` milliseconds", async function(this: Mocha.ISuiteCallbackContext) {
+    it("should wait around `waitTime` milliseconds", async function(this: Mocha.Context) {
         this.timeout(10000);
         return jsc.assert(
             jsc.forall(

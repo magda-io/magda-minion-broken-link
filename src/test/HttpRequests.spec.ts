@@ -24,6 +24,7 @@ describe("Test HttpRequests.ts", () => {
     after(() => {
         nock.emitter.removeListener("no match", onMatchFail);
         nock.cleanAll();
+        nock.abortPendingRequests();
     });
 
     describe("headRequest", () => {
@@ -79,7 +80,11 @@ describe("Test HttpRequests.ts", () => {
     });
 
     describe("getRequest", () => {
-        it("should return status code when response status is between 200 to 299", async function(this: Mocha.ISuiteCallbackContext) {
+        afterEach(() => {
+            nock.cleanAll();
+            nock.abortPendingRequests();
+        });
+        it("should return status code when response status is between 200 to 299", async function(this: Mocha.Context) {
             this.timeout(5000);
             return jsc.assert(
                 jsc.forall(
@@ -103,7 +108,7 @@ describe("Test HttpRequests.ts", () => {
             );
         });
 
-        it("should wait until stream completes", async function(this: Mocha.ISuiteCallbackContext) {
+        it("should wait until stream completes", async function(this: Mocha.Context) {
             this.timeout(30000);
             return (
                 jsc.assert(
