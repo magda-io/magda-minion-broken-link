@@ -5,6 +5,7 @@ import {
     AuthorizedRegistryClient as Registry,
     Record
 } from "@magda/minion-sdk";
+import { getStorageApiResourceAccessUrl } from "@magda/utils";
 import { BrokenLinkAspect, RetrieveResult } from "./brokenLinkAspectDef.js";
 import FTPHandler from "./FtpHandler.js";
 import parseUriSafe from "./parseUriSafe.js";
@@ -19,6 +20,8 @@ import wait from "./wait.js";
 export default async function onRecordFound(
     record: Record,
     registry: Registry,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
     retries: number = 1,
     baseRetryDelaySeconds: number = 1,
     domainWaitTimeConfig: { [domain: string]: number } = {},
@@ -44,7 +47,9 @@ export default async function onRecordFound(
                 retries,
                 ftpHandler,
                 _.partialRight(getUrlWaitTime, domainWaitTimeConfig),
-                requestOpts
+                requestOpts,
+                storageApiBaseUrl,
+                datasetBucketName
             )
     );
 
@@ -165,7 +170,9 @@ function checkDistributionLink(
     retries: number,
     ftpHandler: FTPHandler,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string
 ): DistributionLinkCheck[] {
     type DistURL = {
         url?: URI;
@@ -182,7 +189,17 @@ function checkDistributionLink(
             type: "accessURL" as "accessURL"
         }
     ]
-        .map((urlObj) => ({ ...urlObj, url: parseUriSafe(urlObj.url) }))
+        .map((urlObj) => {
+            const url =
+                typeof urlObj.url === "string"
+                    ? getStorageApiResourceAccessUrl(
+                          urlObj.url,
+                          storageApiBaseUrl,
+                          datasetBucketName
+                      )
+                    : urlObj.url;
+            return { ...urlObj, url: parseUriSafe(url) };
+        })
         .filter((x) => x.url && x.url.protocol().length > 0);
 
     if (urls.length === 0) {

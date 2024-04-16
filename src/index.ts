@@ -61,6 +61,8 @@ function sleuthBrokenLinks() {
             onRecordFound(
                 record,
                 registry,
+                argv.storageApiBaseUrl,
+                argv.datasetBucketName,
                 argv.externalRetries,
                 1,
                 argv.domainWaitTimeConfig as any,

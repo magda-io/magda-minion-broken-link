@@ -36,6 +36,8 @@ import {
     getDefaultDomainWaitTime
 } from "../getUrlWaitTime.js";
 
+const defaultStorageApiBaseUrl = "http://storage-api/v0";
+const defaultDatsetBucketName = "magda-datasets";
 const schema = require("@magda/registry-aspects/source-link-status.schema.json");
 
 describe("onRecordFound", function (this: Mocha.Suite) {
@@ -376,6 +378,8 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                     return onRecordFound(
                         record,
                         registry,
+                        defaultStorageApiBaseUrl,
+                        defaultDatsetBucketName,
                         0,
                         0,
                         {},
@@ -587,6 +591,8 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                             return onRecordFound(
                                 record,
                                 registry,
+                                defaultStorageApiBaseUrl,
+                                defaultDatsetBucketName,
                                 retryCount,
                                 0
                             )
@@ -709,6 +715,8 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                     return onRecordFound(
                         record,
                         registry,
+                        defaultStorageApiBaseUrl,
+                        defaultDatsetBucketName,
                         failures.length,
                         0,
                         delayConfig
@@ -748,10 +756,15 @@ describe("onRecordFound", function (this: Mocha.Suite) {
     jsc.property(
         "Should do nothing if no distributions",
         emptyRecordArb,
-        (record) => {
+        (record: Record) => {
             beforeEachProperty();
 
-            return onRecordFound(record, registry).then(() => {
+            return onRecordFound(
+                record,
+                registry,
+                defaultStorageApiBaseUrl,
+                defaultDatsetBucketName
+            ).then(() => {
                 afterEachProperty();
 
                 registryScope.done();
