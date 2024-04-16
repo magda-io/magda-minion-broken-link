@@ -32,6 +32,14 @@ schedule: "0 0 14,28 * *"
 
 defaultAdminUserId: "00000000-0000-4000-8000-000000000000"
 
+# -- The base URL of the storage API to use when generating access URLs for MAGDA internal stored resources.
+storageApiBaseUrl: "http://storage-api/v0"
+
+# -- The name of the storage bucket where all dataset files are stored. 
+# Should match storage API config.
+# By default, it will use the value of `global.defaultDatasetBucket` (defined in `magda-core` chart) unless you specify a different value here.
+datasetBucketName: ""
+
 # Setup Domain Wait Time
 # domainWaitTimeConfig:
 #   data.csiro.au: 5

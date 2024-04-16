@@ -48,6 +48,10 @@ spec:
           value: {{ .Values.global.defaultAdminUserId | default .Values.defaultAdminUserId }}
         - name: INTERNAL_URL
           value: "http://minion-broken-link"
+        - name: STORAGE_API_BASE_URL
+          value: {{ .Values.storageApiBaseUrl | quote }}
+        - name: DATASET_BUCKET_NAME
+          value: {{ .Values.datasetBucketName | default .Values.global.defaultDatasetBucket | quote }}
 {{- if .Values.domainWaitTimeConfig }}
         - name: DOMAIN_WAIT_TIME_CONFIG
           value: '{{ toJson .Values.domainWaitTimeConfig | indent 2 }}'
