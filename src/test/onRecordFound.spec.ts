@@ -377,7 +377,7 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                             .reply(201);
                     });
 
-                    const allOnRecordsTasks = allDists.map((dist) =>
+                    const allOnRecordsTasks = allDists.map((dist: Record) =>
                         onRecordFound(
                             dist,
                             registry,
