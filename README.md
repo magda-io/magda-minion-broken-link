@@ -16,39 +16,39 @@ It's recommended to deploy minions with as [dependencies](https://helm.sh/docs/t
 
 ```yaml
 dependencies:
-    - name: magda-minion-broken-link
-      version: "2.0.0"
-      repository: "oci://ghcr.io/magda-io/charts"
+  - name: magda-minion-broken-link
+    version: "2.0.0"
+    repository: "oci://ghcr.io/magda-io/charts"
 ```
 
 ## Requirements
 
 Kubernetes: `>= 1.21.0`
 
-| Repository                    | Name         | Version |
-| ----------------------------- | ------------ | ------- |
-| oci://ghcr.io/magda-io/charts | magda-common | 2.1.1   |
+| Repository | Name | Version |
+|------------|------|---------|
+| oci://ghcr.io/magda-io/charts | magda-common | 2.1.1 |
 
 ## Values
 
-| Key                          | Type   | Default                                  | Description                                                                                                                                                                                                                                       |
-| ---------------------------- | ------ | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| cronJobImage.name            | string | `"alpine"`                               |                                                                                                                                                                                                                                                   |
-| cronJobImage.pullPolicy      | string | `"IfNotPresent"`                         |                                                                                                                                                                                                                                                   |
-| cronJobImage.pullSecrets     | bool   | `false`                                  |                                                                                                                                                                                                                                                   |
-| cronJobImage.repository      | string | `"docker.io"`                            |                                                                                                                                                                                                                                                   |
-| cronJobImage.tag             | string | `"latest"`                               |                                                                                                                                                                                                                                                   |
-| datasetBucketName            | string | `""`                                     | The name of the storage bucket where all dataset files are stored. Should match storage API config. By default, it will use the value of `global.defaultDatasetBucket` (defined in `magda-core` chart) unless you specify a different value here. |
-| defaultAdminUserId           | string | `"00000000-0000-4000-8000-000000000000"` |                                                                                                                                                                                                                                                   |
-| defaultImage.imagePullSecret | bool   | `false`                                  |                                                                                                                                                                                                                                                   |
-| defaultImage.pullPolicy      | string | `"IfNotPresent"`                         |                                                                                                                                                                                                                                                   |
-| defaultImage.repository      | string | `"ghcr.io/magda-io"`                     |                                                                                                                                                                                                                                                   |
-| global.image                 | object | `{}`                                     |                                                                                                                                                                                                                                                   |
-| global.minions.image         | object | `{}`                                     |                                                                                                                                                                                                                                                   |
-| global.rollingUpdate         | object | `{}`                                     |                                                                                                                                                                                                                                                   |
-| image.name                   | string | `"magda-minion-broken-link"`             |                                                                                                                                                                                                                                                   |
-| resources.limits.cpu         | string | `"200m"`                                 |                                                                                                                                                                                                                                                   |
-| resources.requests.cpu       | string | `"50m"`                                  |                                                                                                                                                                                                                                                   |
-| resources.requests.memory    | string | `"40Mi"`                                 |                                                                                                                                                                                                                                                   |
-| schedule                     | string | `"0 0 14,28 * *"`                        |                                                                                                                                                                                                                                                   |
-| storageApiBaseUrl            | string | `"http://storage-api/v0"`                | The base URL of the storage API to use when generating access URLs for MAGDA internal stored resources.                                                                                                                                           |
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| cronJobImage.name | string | `"alpine"` |  |
+| cronJobImage.pullPolicy | string | `"IfNotPresent"` |  |
+| cronJobImage.pullSecrets | bool | `false` |  |
+| cronJobImage.repository | string | `"docker.io"` |  |
+| cronJobImage.tag | string | `"latest"` |  |
+| datasetBucketName | string | `""` | The name of the storage bucket where all dataset files are stored.  Should match storage API config. By default, it will use the value of `global.defaultDatasetBucket` (defined in `magda-core` chart) unless you specify a different value here. |
+| defaultAdminUserId | string | `"00000000-0000-4000-8000-000000000000"` |  |
+| defaultImage.imagePullSecret | bool | `false` |  |
+| defaultImage.pullPolicy | string | `"IfNotPresent"` |  |
+| defaultImage.repository | string | `"ghcr.io/magda-io"` |  |
+| global.image | object | `{}` |  |
+| global.minions.image | object | `{}` |  |
+| global.rollingUpdate | object | `{}` |  |
+| image.name | string | `"magda-minion-broken-link"` |  |
+| resources.limits.cpu | string | `"200m"` |  |
+| resources.requests.cpu | string | `"50m"` |  |
+| resources.requests.memory | string | `"40Mi"` |  |
+| schedule | string | `"0 0 14,28 * *"` |  |
+| storageApiBaseUrl | string | `"http://storage-api/v0"` | The base URL of the storage API to use when generating access URLs for MAGDA internal stored resources. |
