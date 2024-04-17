@@ -15,9 +15,12 @@ import {
     setDefaultDomainWaitTime,
     getDefaultDomainWaitTime
 } from "../getUrlWaitTime.js";
+import { buildJwt } from "@magda/utils";
 
 const defaultStorageApiBaseUrl = "http://storage-api/v0";
 const defaultDatasetBucketName = "magda-datasets";
+const jwtSecret = "sdsfsfdsfsddsfsdfdsfds2323432423";
+const actionUserId = "user-id-1";
 const schema = require("@magda/registry-aspects/source-link-status.schema.json");
 
 describe("Test Internal Storage URL", function (this: Mocha.Suite) {
@@ -109,23 +112,25 @@ describe("Test Internal Storage URL", function (this: Mocha.Suite) {
         };
 
         const defaultStorageApiBaseUri = urijs(defaultStorageApiBaseUrl);
-
+        const jwt = buildJwt(jwtSecret, actionUserId);
         const storageApiScope = nock(
-            defaultStorageApiBaseUri.clone().path("").toString()
+            defaultStorageApiBaseUri.clone().path("").toString(),
+            {
+                reqheaders: {
+                    "X-Magda-Session": jwt
+                }
+            }
         );
-
         storageApiScope
             .head(
                 `${defaultStorageApiBaseUri.path()}/${defaultDatasetBucketName}/ds-1/dist-1/test-file1.pdf`
             )
-            .query(true)
             .reply(200);
 
         storageApiScope
             .head(
                 `${defaultStorageApiBaseUri.path()}/${defaultDatasetBucketName}/ds-1/dist-2/test-file2.pdf`
             )
-            .query(true)
             .reply(200);
 
         ["dist-1", "dist-2"].forEach((distId) => {
@@ -160,6 +165,8 @@ describe("Test Internal Storage URL", function (this: Mocha.Suite) {
             registry,
             defaultStorageApiBaseUrl,
             defaultDatasetBucketName,
+            jwtSecret,
+            actionUserId,
             0,
             0,
             {},

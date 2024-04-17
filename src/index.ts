@@ -63,6 +63,8 @@ function sleuthBrokenLinks() {
                 registry,
                 argv.storageApiBaseUrl,
                 argv.datasetBucketName,
+                argv.jwtSecret,
+                argv.userId,
                 argv.externalRetries,
                 1,
                 argv.domainWaitTimeConfig as any,

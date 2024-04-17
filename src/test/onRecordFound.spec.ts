@@ -37,7 +37,9 @@ import {
 } from "../getUrlWaitTime.js";
 
 const defaultStorageApiBaseUrl = "http://storage-api/v0";
-const defaultDatsetBucketName = "magda-datasets";
+const defaultDatasetBucketName = "magda-datasets";
+const jwtSecret = "sdsfsfdsfsddsfsdfdsfds2323432423";
+const actionUserId = "user-id-1";
 const schema = require("@magda/registry-aspects/source-link-status.schema.json");
 
 describe("onRecordFound", function (this: Mocha.Suite) {
@@ -379,7 +381,9 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                         record,
                         registry,
                         defaultStorageApiBaseUrl,
-                        defaultDatsetBucketName,
+                        defaultDatasetBucketName,
+                        jwtSecret,
+                        actionUserId,
                         0,
                         0,
                         {},
@@ -592,7 +596,9 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                                 record,
                                 registry,
                                 defaultStorageApiBaseUrl,
-                                defaultDatsetBucketName,
+                                defaultDatasetBucketName,
+                                jwtSecret,
+                                actionUserId,
                                 retryCount,
                                 0
                             )
@@ -716,7 +722,9 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                         record,
                         registry,
                         defaultStorageApiBaseUrl,
-                        defaultDatsetBucketName,
+                        defaultDatasetBucketName,
+                        jwtSecret,
+                        actionUserId,
                         failures.length,
                         0,
                         delayConfig
@@ -763,7 +771,9 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                 record,
                 registry,
                 defaultStorageApiBaseUrl,
-                defaultDatsetBucketName
+                defaultDatasetBucketName,
+                jwtSecret,
+                actionUserId
             ).then(() => {
                 afterEachProperty();
 

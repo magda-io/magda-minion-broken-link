@@ -16,12 +16,15 @@ import {
 } from "./HttpRequests.js";
 import getUrlWaitTime from "./getUrlWaitTime.js";
 import wait from "./wait.js";
+import { buildJwt } from "@magda/utils";
 
 export default async function onRecordFound(
     record: Record,
     registry: Registry,
     storageApiBaseUrl: string,
     datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string,
     retries: number = 1,
     baseRetryDelaySeconds: number = 1,
     domainWaitTimeConfig: { [domain: string]: number } = {},
@@ -49,7 +52,9 @@ export default async function onRecordFound(
                 _.partialRight(getUrlWaitTime, domainWaitTimeConfig),
                 requestOpts,
                 storageApiBaseUrl,
-                datasetBucketName
+                datasetBucketName,
+                jwtSecret,
+                actionUserId
             )
     );
 
@@ -172,7 +177,9 @@ function checkDistributionLink(
     getUrlWaitTime: (url: string) => number,
     requestOpts: CoreOptions,
     storageApiBaseUrl: string,
-    datasetBucketName: string
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): DistributionLinkCheck[] {
     type DistURL = {
         url?: URI;
@@ -190,15 +197,7 @@ function checkDistributionLink(
         }
     ]
         .map((urlObj) => {
-            const url =
-                typeof urlObj.url === "string"
-                    ? getStorageApiResourceAccessUrl(
-                          urlObj.url,
-                          storageApiBaseUrl,
-                          datasetBucketName
-                      )
-                    : urlObj.url;
-            return { ...urlObj, url: parseUriSafe(url) };
+            return { ...urlObj, url: parseUriSafe(urlObj.url) };
         })
         .filter((x) => x.url && x.url.protocol().length > 0);
 
@@ -232,7 +231,11 @@ function checkDistributionLink(
                     retries,
                     ftpHandler,
                     getUrlWaitTime,
-                    requestOpts
+                    requestOpts,
+                    storageApiBaseUrl,
+                    datasetBucketName,
+                    jwtSecret,
+                    actionUserId
                 )
                     .then((aspect) => {
                         console.info("Finished retrieving  " + parsedURL);
@@ -262,15 +265,28 @@ function retrieve(
     retries: number,
     ftpHandler: FTPHandler,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): Promise<BrokenLinkAspect> {
-    if (parsedURL.protocol() === "http" || parsedURL.protocol() === "https") {
+    if (
+        parsedURL.protocol() === "http" ||
+        parsedURL.protocol() === "https" ||
+        (parsedURL.protocol() === "magda" &&
+            parsedURL.hostname() === "storage-api")
+    ) {
         return retrieveHttp(
             parsedURL.toString(),
             baseRetryDelay,
             retries,
             getUrlWaitTime,
-            requestOpts
+            requestOpts,
+            storageApiBaseUrl,
+            datasetBucketName,
+            jwtSecret,
+            actionUserId
         );
     } else if (parsedURL.protocol() === "ftp") {
         return retrieveFtp(parsedURL, ftpHandler);
@@ -319,16 +335,41 @@ async function retrieveHttp(
     baseRetryDelay: number,
     retries: number,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): Promise<BrokenLinkAspect> {
+    const isInternalStorageRes = url.indexOf("magda://storage-api/") === 0;
+    const resUrl = getStorageApiResourceAccessUrl(
+        url,
+        storageApiBaseUrl,
+        datasetBucketName
+    );
+    const runtimeRequestOpts = { ...requestOpts };
+    if (requestOpts?.headers) {
+        runtimeRequestOpts.headers = {
+            ...requestOpts.headers
+        };
+    }
+    if (isInternalStorageRes) {
+        if (!runtimeRequestOpts?.headers) {
+            runtimeRequestOpts.headers = {};
+        }
+        runtimeRequestOpts.headers = {
+            ...runtimeRequestOpts.headers,
+            "X-Magda-Session": buildJwt(jwtSecret, actionUserId)
+        };
+    }
     async function operation() {
         try {
-            await wait(getUrlWaitTime(url));
-            return await headRequest(url, requestOpts);
+            await wait(getUrlWaitTime(resUrl));
+            return await headRequest(resUrl, runtimeRequestOpts);
         } catch (e) {
             // --- HEAD Method not allowed
-            await wait(getUrlWaitTime(url));
-            return await getRequest(url, requestOpts);
+            await wait(getUrlWaitTime(resUrl));
+            return await getRequest(resUrl, runtimeRequestOpts);
         }
     }
 
