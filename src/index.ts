@@ -52,11 +52,11 @@ function sleuthBrokenLinks() {
     return minion({
         argv,
         id: ID,
-        aspects: ["dataset-distributions"],
+        aspects: ["dcat-distribution-strings"],
         optionalAspects: [],
         async: true,
         writeAspectDefs: [brokenLinkAspectDef],
-        dereference: true,
+        dereference: false,
         onRecordFound: (record, registry) =>
             onRecordFound(
                 record,
