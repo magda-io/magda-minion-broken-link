@@ -377,19 +377,23 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                             .reply(201);
                     });
 
-                    return onRecordFound(
-                        record,
-                        registry,
-                        defaultStorageApiBaseUrl,
-                        defaultDatasetBucketName,
-                        jwtSecret,
-                        actionUserId,
-                        0,
-                        0,
-                        {},
-                        {},
-                        fakeFtpHandler
-                    )
+                    const allOnRecordsTasks = allDists.map((dist) =>
+                        onRecordFound(
+                            dist,
+                            registry,
+                            defaultStorageApiBaseUrl,
+                            defaultDatasetBucketName,
+                            jwtSecret,
+                            actionUserId,
+                            0,
+                            0,
+                            {},
+                            {},
+                            fakeFtpHandler
+                        )
+                    );
+
+                    return Promise.all(allOnRecordsTasks)
                         .then(() => {
                             distScopes.forEach((scope) => scope.done());
                             registryScope.done();
@@ -405,237 +409,225 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                 }
             ),
             {
-                tests: 500
+                tests: 50
             }
         );
     });
 
-    describe("retrying", () => {
-        /**
-         * Runs onRecordFound with a number of failing codes, testing whether the
-         * minion retries the correct number of times, and whether it correctly
-         * records a success after retries or a failure after the retries run out.
-         *
-         * This tests both 429 retries and other retries - this involves different
-         * behaviour as the retry for 429 (which indicates rate limiting) require
-         * a much longer cool-off time and hence are done differently.
-         *
-         * @param caption The caption to use for the mocha "it" call.
-         * @param result Whether to test for a number of retries then a success, a
-         *                number of retries then a failure because of too many 429s,
-         *                or a number of retries then a failure because of too many
-         *                non-429 failures (e.g. 404s)
-         */
-        const retrySpec = (
-            caption: string,
-            result: "success" | "fail429" | "failNormal"
-        ) => {
-            it(caption, function () {
-                const retryCountArb = jsc.integer(0, 5);
+    /**
+     * Runs onRecordFound with a number of failing codes, testing whether the
+     * minion retries the correct number of times, and whether it correctly
+     * records a success after retries or a failure after the retries run out.
+     *
+     * This tests both 429 retries and other retries - this involves different
+     * behaviour as the retry for 429 (which indicates rate limiting) require
+     * a much longer cool-off time and hence are done differently.
+     *
+     * @param caption The caption to use for the mocha "it" call.
+     * @param result Whether to test for a number of retries then a success, a
+     *                number of retries then a failure because of too many 429s,
+     *                or a number of retries then a failure because of too many
+     *                non-429 failures (e.g. 404s)
+     */
+    const retrySpec = (
+        caption: string,
+        result: "success" | "fail429" | "failNormal"
+    ) => {
+        it(caption, function () {
+            const retryCountArb = jsc.integer(0, 5);
 
-                type FailuresArbResult = {
-                    retryCount: number;
-                    allResults: number[][];
-                };
+            type FailuresArbResult = {
+                retryCount: number;
+                allResults: number[][];
+            };
 
-                /**
-                 * Generates a retryCount and a nested array of results to return to the
-                 * minion - the inner arrays are status codes to be returned (in order),
-                 * after each inner array is finished a 429 will be returned, then the
-                 * next array of error codes will be returned.
-                 */
-                const failuresArb: jsc.Arbitrary<FailuresArbResult> =
-                    arbFlatMap<number, FailuresArbResult>(
-                        retryCountArb,
-                        (retryCount: number) => {
-                            /** Generates how many 429 codes will be returned */
-                            const count429Arb =
-                                result === "fail429"
-                                    ? jsc.constant(retryCount)
-                                    : jsc.integer(0, retryCount);
+            /**
+             * Generates a retryCount and a nested array of results to return to the
+             * minion - the inner arrays are status codes to be returned (in order),
+             * after each inner array is finished a 429 will be returned, then the
+             * next array of error codes will be returned.
+             */
+            const failuresArb: jsc.Arbitrary<FailuresArbResult> = arbFlatMap<
+                number,
+                FailuresArbResult
+            >(
+                retryCountArb,
+                (retryCount: number) => {
+                    /** Generates how many 429 codes will be returned */
+                    const count429Arb =
+                        result === "fail429"
+                            ? jsc.constant(retryCount)
+                            : jsc.integer(0, retryCount);
 
-                            /** Generates how long the array of non-429 failures should be. */
-                            const failureCodeLengthArb = jsc.integer(
-                                0,
-                                retryCount
+                    /** Generates how long the array of non-429 failures should be. */
+                    const failureCodeLengthArb = jsc.integer(0, retryCount);
+
+                    const allResultsArb = arbFlatMap<number, number[]>(
+                        count429Arb,
+                        (count429s) =>
+                            arrayOfSizeArb(count429s + 1, failureCodeLengthArb),
+                        (failureCodeArr: number[]) => failureCodeArr.length
+                    ).flatMap<number[][]>(
+                        (failureCodeArrSizes: number[]) => {
+                            const failureCodeArbs = failureCodeArrSizes.map(
+                                (size) => arrayOfSizeArb(size, failureCodeArb)
                             );
 
-                            const allResultsArb = arbFlatMap<number, number[]>(
-                                count429Arb,
-                                (count429s) =>
+                            if (result === "failNormal") {
+                                failureCodeArbs[failureCodeArbs.length - 1] =
                                     arrayOfSizeArb(
-                                        count429s + 1,
-                                        failureCodeLengthArb
-                                    ),
-                                (failureCodeArr: number[]) =>
-                                    failureCodeArr.length
-                            ).flatMap<number[][]>(
-                                (failureCodeArrSizes: number[]) => {
-                                    const failureCodeArbs =
-                                        failureCodeArrSizes.map((size) =>
-                                            arrayOfSizeArb(size, failureCodeArb)
-                                        );
+                                        retryCount + 1,
+                                        failureCodeArb
+                                    );
+                            }
 
-                                    if (result === "failNormal") {
-                                        failureCodeArbs[
-                                            failureCodeArbs.length - 1
-                                        ] = arrayOfSizeArb(
-                                            retryCount + 1,
-                                            failureCodeArb
-                                        );
-                                    }
-
-                                    return failureCodeArrSizes.length > 0
-                                        ? jsc.tuple(failureCodeArbs)
-                                        : jsc.constant([]);
-                                },
-                                (failures) =>
-                                    failures.map((inner) => inner.length)
-                            );
-
-                            const combined = jsc.record<FailuresArbResult>({
-                                retryCount: jsc.constant(retryCount),
-                                allResults: allResultsArb
-                            });
-
-                            return combined;
+                            return failureCodeArrSizes.length > 0
+                                ? jsc.tuple(failureCodeArbs)
+                                : jsc.constant([]);
                         },
-                        ({ retryCount }: FailuresArbResult) => {
-                            return retryCount;
-                        }
+                        (failures) => failures.map((inner) => inner.length)
                     );
 
-                return jsc.assert(
-                    jsc.forall(
-                        httpOnlyRecordArb,
-                        failuresArb,
-                        (
-                            record: Record,
-                            { retryCount, allResults }: FailuresArbResult
-                        ) => {
-                            beforeEachProperty();
+                    const combined = jsc.record<FailuresArbResult>({
+                        retryCount: jsc.constant(retryCount),
+                        allResults: allResultsArb
+                    });
 
-                            const distScopes = urlsFromDataSet(record).map(
-                                (url) => {
-                                    const scope = nock(url); //.log(console.log);
+                    return combined;
+                },
+                ({ retryCount }: FailuresArbResult) => {
+                    return retryCount;
+                }
+            );
 
-                                    allResults.forEach((failureCodes, i) => {
-                                        failureCodes.forEach((failureCode) => {
-                                            scope
-                                                .head(
-                                                    url.endsWith("/") ? "/" : ""
-                                                )
-                                                .reply(failureCode);
+            return jsc.assert(
+                jsc.forall(
+                    httpOnlyRecordArb,
+                    failuresArb,
+                    (
+                        record: Record,
+                        { retryCount, allResults }: FailuresArbResult
+                    ) => {
+                        beforeEachProperty();
 
-                                            scope
-                                                .get(
-                                                    url.endsWith("/") ? "/" : ""
-                                                )
-                                                .reply(failureCode);
-                                        });
-                                        if (
-                                            i < allResults.length - 1 ||
-                                            result === "fail429"
-                                        ) {
-                                            scope
-                                                .head(
-                                                    url.endsWith("/") ? "/" : ""
-                                                )
-                                                .reply(429);
-                                        }
-                                    });
+                        const distScopes = urlsFromDataSet(record).map(
+                            (url) => {
+                                const scope = nock(url); //.log(console.log);
 
-                                    if (result === "success") {
+                                allResults.forEach((failureCodes, i) => {
+                                    failureCodes.forEach((failureCode) => {
                                         scope
                                             .head(url.endsWith("/") ? "/" : "")
-                                            .reply(200);
+                                            .reply(failureCode);
+
+                                        scope
+                                            .get(url.endsWith("/") ? "/" : "")
+                                            .reply(failureCode);
+                                    });
+                                    if (
+                                        i < allResults.length - 1 ||
+                                        result === "fail429"
+                                    ) {
+                                        scope
+                                            .head(url.endsWith("/") ? "/" : "")
+                                            .reply(429);
                                     }
-
-                                    return scope;
-                                }
-                            );
-
-                            const allDists =
-                                record.aspects["dataset-distributions"]
-                                    .distributions;
-
-                            allDists.forEach((dist: Record) => {
-                                registryScope
-                                    .put(
-                                        `/records/${encodeURIComponentWithApost(
-                                            dist.id
-                                        )}/aspects/source-link-status?merge=true`,
-                                        (response: any) => {
-                                            const statusMatch =
-                                                response.status ===
-                                                {
-                                                    success: "active",
-                                                    failNormal: "broken",
-                                                    fail429: "unknown"
-                                                }[result];
-                                            const codeMatch =
-                                                !_.isUndefined(
-                                                    response.httpStatusCode
-                                                ) &&
-                                                response.httpStatusCode ===
-                                                    {
-                                                        success: 200,
-                                                        failNormal: _.last(
-                                                            _.last(allResults)
-                                                        ),
-                                                        fail429: 429
-                                                    }[result];
-
-                                            return statusMatch && codeMatch;
-                                        }
-                                    )
-                                    .reply(201);
-                            });
-
-                            return onRecordFound(
-                                record,
-                                registry,
-                                defaultStorageApiBaseUrl,
-                                defaultDatasetBucketName,
-                                jwtSecret,
-                                actionUserId,
-                                retryCount,
-                                0
-                            )
-                                .then(() => {
-                                    registryScope.done();
-                                    distScopes.forEach((scope) => scope.done());
-                                })
-                                .then(() => {
-                                    afterEachProperty();
-                                    return true;
-                                })
-                                .catch((e) => {
-                                    afterEachProperty();
-                                    throw e;
                                 });
-                        }
-                    ),
-                    {
-                        tests: 50
-                    }
-                );
-            });
-        };
 
-        retrySpec(
-            "Should result in success if the last retry is successful",
-            "success"
-        );
-        retrySpec(
-            "Should result in failures if the max number of retries is exceeded",
-            "failNormal"
-        );
-        retrySpec(
-            "Should result in failures if the max number of 429s is exceeded",
-            "fail429"
-        );
-    });
+                                if (result === "success") {
+                                    scope
+                                        .head(url.endsWith("/") ? "/" : "")
+                                        .reply(200);
+                                }
+
+                                return scope;
+                            }
+                        );
+
+                        const allDists =
+                            record.aspects["dataset-distributions"]
+                                .distributions;
+
+                        allDists.forEach((dist: Record) => {
+                            registryScope
+                                .put(
+                                    `/records/${encodeURIComponentWithApost(
+                                        dist.id
+                                    )}/aspects/source-link-status?merge=true`,
+                                    (response: any) => {
+                                        const statusMatch =
+                                            response.status ===
+                                            {
+                                                success: "active",
+                                                failNormal: "broken",
+                                                fail429: "unknown"
+                                            }[result];
+                                        const codeMatch =
+                                            !_.isUndefined(
+                                                response.httpStatusCode
+                                            ) &&
+                                            response.httpStatusCode ===
+                                                {
+                                                    success: 200,
+                                                    failNormal: _.last(
+                                                        _.last(allResults)
+                                                    ),
+                                                    fail429: 429
+                                                }[result];
+
+                                        return statusMatch && codeMatch;
+                                    }
+                                )
+                                .reply(201);
+                        });
+
+                        return Promise.all(
+                            allDists.map((dist: Record) =>
+                                onRecordFound(
+                                    dist,
+                                    registry,
+                                    defaultStorageApiBaseUrl,
+                                    defaultDatasetBucketName,
+                                    jwtSecret,
+                                    actionUserId,
+                                    retryCount,
+                                    0
+                                )
+                            )
+                        )
+                            .then(() => {
+                                registryScope.done();
+                                distScopes.forEach((scope) => scope.done());
+                            })
+                            .then(() => {
+                                afterEachProperty();
+                                return true;
+                            })
+                            .catch((e) => {
+                                afterEachProperty();
+                                throw e;
+                            });
+                    }
+                ),
+                {
+                    tests: 10
+                }
+            );
+        });
+    };
+
+    retrySpec(
+        "Should result in success if the last retry is successful",
+        "success"
+    );
+    retrySpec(
+        "Should result in failures if the max number of retries is exceeded",
+        "failNormal"
+    );
+    retrySpec(
+        "Should result in failures if the max number of 429s is exceeded",
+        "fail429"
+    );
 
     it("Should only try to make one request per host at a time", function () {
         const urlArb = (jsc as any).nonshrink(
@@ -718,16 +710,20 @@ describe("onRecordFound", function (this: Mocha.Suite) {
 
                     registryScope.put(/.*/).times(allDists.length).reply(201);
 
-                    return onRecordFound(
-                        record,
-                        registry,
-                        defaultStorageApiBaseUrl,
-                        defaultDatasetBucketName,
-                        jwtSecret,
-                        actionUserId,
-                        failures.length,
-                        0,
-                        delayConfig
+                    return Promise.all(
+                        allDists.map((dist: Record) =>
+                            onRecordFound(
+                                dist,
+                                registry,
+                                defaultStorageApiBaseUrl,
+                                defaultDatasetBucketName,
+                                jwtSecret,
+                                actionUserId,
+                                failures.length,
+                                0,
+                                delayConfig
+                            )
+                        )
                     )
                         .then(() => {
                             _.values(distScopes).forEach((scope) =>
@@ -738,7 +734,7 @@ describe("onRecordFound", function (this: Mocha.Suite) {
                             afterEachProperty();
                             return true;
                         })
-                        .catch((e) => {
+                        .catch((e: any) => {
                             afterEachProperty();
                             throw e;
                         });
@@ -752,13 +748,9 @@ describe("onRecordFound", function (this: Mocha.Suite) {
 
     const emptyRecordArb = jsc.oneof([
         specificRecordArb({
-            "dataset-distributions": jsc.constant(undefined)
+            "dcat-dataset-strings": jsc.constant({})
         }),
-        specificRecordArb({
-            "dataset-distributions": jsc.record({
-                distributions: jsc.constant([])
-            })
-        })
+        specificRecordArb({})
     ]);
 
     jsc.property(

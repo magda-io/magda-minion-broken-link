@@ -31,9 +31,12 @@ export default async function onRecordFound(
     requestOpts: CoreOptions = {},
     ftpHandler: FTPHandler = new FTPHandler()
 ) {
-    const distributions: Record[] =
-        record.aspects["dataset-distributions"] &&
-        record.aspects["dataset-distributions"].distributions;
+    const distributions: Record[] = [record];
+    const dcatDistributionsStringsAspect =
+        record?.aspects?.["dcat-distribution-strings"];
+    if (!dcatDistributionsStringsAspect) {
+        return Promise.resolve();
+    }
 
     if (!distributions || distributions.length === 0) {
         return Promise.resolve();

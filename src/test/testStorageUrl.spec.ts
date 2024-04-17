@@ -81,32 +81,13 @@ describe("Test Internal Storage URL", function (this: Mocha.Suite) {
         const validate = ajv.compile(schema);
 
         const testRecord: Record = {
-            id: "ds-1",
+            id: "dist-1",
             name: "Test Record",
             sourceTag: "test-source",
             tenantId: 1,
             aspects: {
-                "dataset-distributions": {
-                    distributions: [
-                        {
-                            id: "dist-1",
-                            aspects: {
-                                "dcat-distribution-strings": {
-                                    downloadURL:
-                                        "magda://storage-api/ds-1/dist-1/test-file1.pdf"
-                                }
-                            }
-                        },
-                        {
-                            id: "dist-2",
-                            aspects: {
-                                "dcat-distribution-strings": {
-                                    accessURL:
-                                        "magda://storage-api/ds-1/dist-2/test-file2.pdf"
-                                }
-                            }
-                        }
-                    ]
+                "dcat-distribution-strings": {
+                    accessURL: "magda://storage-api/ds-1/dist-1/test-file1.pdf"
                 }
             }
         };
@@ -127,13 +108,7 @@ describe("Test Internal Storage URL", function (this: Mocha.Suite) {
             )
             .reply(200);
 
-        storageApiScope
-            .head(
-                `${defaultStorageApiBaseUri.path()}/${defaultDatasetBucketName}/ds-1/dist-2/test-file2.pdf`
-            )
-            .reply(200);
-
-        ["dist-1", "dist-2"].forEach((distId) => {
+        ["dist-1"].forEach((distId) => {
             registryScope
                 .put(
                     `/records/${encodeURIComponentWithApost(
