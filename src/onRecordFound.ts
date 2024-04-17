@@ -5,25 +5,38 @@ import {
     AuthorizedRegistryClient as Registry,
     Record
 } from "@magda/minion-sdk";
-import { BrokenLinkAspect, RetrieveResult } from "./brokenLinkAspectDef";
-import FTPHandler from "./FtpHandler";
-import parseUriSafe from "./parseUriSafe";
-import { headRequest, getRequest, BadHttpResponseError } from "./HttpRequests";
-import getUrlWaitTime from "./getUrlWaitTime";
-import wait from "./wait";
+import { getStorageApiResourceAccessUrl } from "@magda/utils";
+import { BrokenLinkAspect, RetrieveResult } from "./brokenLinkAspectDef.js";
+import FTPHandler from "./FtpHandler.js";
+import parseUriSafe from "./parseUriSafe.js";
+import {
+    headRequest,
+    getRequest,
+    BadHttpResponseError
+} from "./HttpRequests.js";
+import getUrlWaitTime from "./getUrlWaitTime.js";
+import wait from "./wait.js";
+import { buildJwt } from "@magda/utils";
 
 export default async function onRecordFound(
     record: Record,
     registry: Registry,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string,
     retries: number = 1,
     baseRetryDelaySeconds: number = 1,
     domainWaitTimeConfig: { [domain: string]: number } = {},
     requestOpts: CoreOptions = {},
     ftpHandler: FTPHandler = new FTPHandler()
 ) {
-    const distributions: Record[] =
-        record.aspects["dataset-distributions"] &&
-        record.aspects["dataset-distributions"].distributions;
+    const distributions: Record[] = [record];
+    const dcatDistributionsStringsAspect =
+        record?.aspects?.["dcat-distribution-strings"];
+    if (!dcatDistributionsStringsAspect) {
+        return Promise.resolve();
+    }
 
     if (!distributions || distributions.length === 0) {
         return Promise.resolve();
@@ -40,7 +53,11 @@ export default async function onRecordFound(
                 retries,
                 ftpHandler,
                 _.partialRight(getUrlWaitTime, domainWaitTimeConfig),
-                requestOpts
+                requestOpts,
+                storageApiBaseUrl,
+                datasetBucketName,
+                jwtSecret,
+                actionUserId
             )
     );
 
@@ -48,10 +65,12 @@ export default async function onRecordFound(
     const brokenLinkChecksByHost: Promise<BrokenLinkSleuthingResult[]>[] = _(
         linkChecks
     )
-        .groupBy(check => check.host)
+        .groupBy((check) => check.host)
         .values()
-        .map((checks: DistributionLinkCheck[]) => checks.map(check => check.op))
-        .map(checksForHost =>
+        .map((checks: DistributionLinkCheck[]) =>
+            checks.map((check) => check.op)
+        )
+        .map((checksForHost) =>
             // Make the checks for this host run one after the other but return their results as an array.
             checksForHost.reduce(
                 (
@@ -60,7 +79,7 @@ export default async function onRecordFound(
                 ) =>
                     megaPromise.then(
                         (megaResult: BrokenLinkSleuthingResult[]) =>
-                            promiseLambda().then(promiseResult =>
+                            promiseLambda().then((promiseResult) =>
                                 megaResult.concat([promiseResult])
                             )
                     ),
@@ -69,25 +88,24 @@ export default async function onRecordFound(
         )
         .value();
 
-    const checkResultsPerHost: BrokenLinkSleuthingResult[][] = await Promise.all(
-        brokenLinkChecksByHost
-    );
+    const checkResultsPerHost: BrokenLinkSleuthingResult[][] =
+        await Promise.all(brokenLinkChecksByHost);
 
     const allResults = _.flatten(checkResultsPerHost);
 
     const bestResultPerDistribution = _(allResults)
-        .groupBy(result => result.distribution.id)
+        .groupBy((result) => result.distribution.id)
         .values()
         .map((results: BrokenLinkSleuthingResult[]) =>
             _(results)
-                .sortBy(result => {
+                .sortBy((result) => {
                     return (
                         { none: 1, downloadURL: 2, accessURL: 3 }[
                             result.urlType
                         ] || Number.MAX_VALUE
                     );
                 })
-                .sortBy(result => {
+                .sortBy((result) => {
                     return (
                         { active: 1, unknown: 2, broken: 3 }[
                             result.aspect.status
@@ -160,7 +178,11 @@ function checkDistributionLink(
     retries: number,
     ftpHandler: FTPHandler,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): DistributionLinkCheck[] {
     type DistURL = {
         url?: URI;
@@ -177,8 +199,10 @@ function checkDistributionLink(
             type: "accessURL" as "accessURL"
         }
     ]
-        .map(urlObj => ({ ...urlObj, url: parseUriSafe(urlObj.url) }))
-        .filter(x => x.url && x.url.protocol().length > 0);
+        .map((urlObj) => {
+            return { ...urlObj, url: parseUriSafe(urlObj.url) };
+        })
+        .filter((x) => x.url && x.url.protocol().length > 0);
 
     if (urls.length === 0) {
         return [
@@ -210,18 +234,22 @@ function checkDistributionLink(
                     retries,
                     ftpHandler,
                     getUrlWaitTime,
-                    requestOpts
+                    requestOpts,
+                    storageApiBaseUrl,
+                    datasetBucketName,
+                    jwtSecret,
+                    actionUserId
                 )
-                    .then(aspect => {
+                    .then((aspect) => {
                         console.info("Finished retrieving  " + parsedURL);
                         return aspect;
                     })
-                    .then(aspect => ({
+                    .then((aspect) => ({
                         distribution,
                         urlType: type,
                         aspect
                     }))
-                    .catch(err => ({
+                    .catch((err) => ({
                         distribution,
                         urlType: type,
                         aspect: {
@@ -240,15 +268,28 @@ function retrieve(
     retries: number,
     ftpHandler: FTPHandler,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): Promise<BrokenLinkAspect> {
-    if (parsedURL.protocol() === "http" || parsedURL.protocol() === "https") {
+    if (
+        parsedURL.protocol() === "http" ||
+        parsedURL.protocol() === "https" ||
+        (parsedURL.protocol() === "magda" &&
+            parsedURL.hostname() === "storage-api")
+    ) {
         return retrieveHttp(
             parsedURL.toString(),
             baseRetryDelay,
             retries,
             getUrlWaitTime,
-            requestOpts
+            requestOpts,
+            storageApiBaseUrl,
+            datasetBucketName,
+            jwtSecret,
+            actionUserId
         );
     } else if (parsedURL.protocol() === "ftp") {
         return retrieveFtp(parsedURL, ftpHandler);
@@ -270,7 +311,7 @@ function retrieveFtp(
     const port = +(parsedURL.port() || 21);
     const pClient = ftpHandler.getClient(parsedURL.hostname(), port);
 
-    return pClient.then(client => {
+    return pClient.then((client) => {
         return new Promise<BrokenLinkAspect>((resolve, reject) => {
             client.list(parsedURL.path(), (err, list) => {
                 if (err) {
@@ -297,23 +338,49 @@ async function retrieveHttp(
     baseRetryDelay: number,
     retries: number,
     getUrlWaitTime: (url: string) => number,
-    requestOpts: CoreOptions
+    requestOpts: CoreOptions,
+    storageApiBaseUrl: string,
+    datasetBucketName: string,
+    jwtSecret: string,
+    actionUserId: string
 ): Promise<BrokenLinkAspect> {
+    const isInternalStorageRes = url.indexOf("magda://storage-api/") === 0;
+    const resUrl = getStorageApiResourceAccessUrl(
+        url,
+        storageApiBaseUrl,
+        datasetBucketName
+    );
+    const runtimeRequestOpts = { ...requestOpts };
+    if (requestOpts?.headers) {
+        runtimeRequestOpts.headers = {
+            ...requestOpts.headers
+        };
+    }
+    if (isInternalStorageRes) {
+        if (!runtimeRequestOpts?.headers) {
+            runtimeRequestOpts.headers = {};
+        }
+        runtimeRequestOpts.headers = {
+            ...runtimeRequestOpts.headers,
+            "X-Magda-Session": buildJwt(jwtSecret, actionUserId)
+        };
+    }
     async function operation() {
         try {
-            await wait(getUrlWaitTime(url));
-            return await headRequest(url, requestOpts);
+            await wait(getUrlWaitTime(resUrl));
+            return await headRequest(resUrl, runtimeRequestOpts);
         } catch (e) {
             // --- HEAD Method not allowed
-            await wait(getUrlWaitTime(url));
-            return await getRequest(url, requestOpts);
+            await wait(getUrlWaitTime(resUrl));
+            return await getRequest(resUrl, runtimeRequestOpts);
         }
     }
 
     const onRetry = (err: BadHttpResponseError, retries: number) => {
         console.info(
-            `Downloading ${url} failed: ${err.httpStatusCode ||
-                err} (${retries} retries remaining)`
+            `Downloading ${url} failed: ${
+                err.httpStatusCode || err
+            } (${retries} retries remaining)`
         );
     };
 
@@ -322,7 +389,7 @@ async function retrieveHttp(
 
     const outerOp: () => Promise<BrokenLinkAspect> = () =>
         innerOp().then(
-            code => {
+            (code) => {
                 if (code === 429) {
                     throw { message: "429 encountered", httpStatusCode: 429 };
                 } else {
@@ -332,7 +399,7 @@ async function retrieveHttp(
                     };
                 }
             },
-            error => {
+            (error) => {
                 return {
                     status: "broken" as "broken",
                     httpStatusCode: error.httpStatusCode,
@@ -347,7 +414,7 @@ async function retrieveHttp(
         retries,
         onRetry,
         (x: number) => x * 5
-    ).catch(err => ({
+    ).catch((err) => ({
         status: "unknown" as "unknown",
         errorDetails: err,
         httpStatusCode: 429

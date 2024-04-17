@@ -14,10 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Use Node.js 14
+      - name: Use Node.js 18
         uses: actions/setup-node@v1
         with:
-          node-version: 14
+          node-version: 18
 
       - name: Login to GitHub Container Registry
         run: |
@@ -34,7 +34,7 @@ jobs:
       - name: Check Helm Chart Document
         run: |
           code=0
-          docker run --rm -v "$(pwd):/helm-docs" -u $(id -u) jnorwood/helm-docs:v1.5.0 -t ./README.md.gotmpl -o ../../README.md || code=$?;
+          docker run --rm -v "$(pwd):/helm-docs" -u $(id -u) jnorwood/helm-docs:v1.13.1 -t ./README.md.gotmpl -o ../../README.md || code=$?;
           if [ "$code" != "0" ]; then 
             echo "Failed to run helm-docs!";
             exit 1;
@@ -44,7 +44,7 @@ jobs:
           git ls-files -m | grep -i readme.md || code=$?;
           if [ "$code" == "0" ]; then
             echo -e "Some of helm chart docs are required to be updated using the [helm-docs](https://github.com/norwoodj/helm-docs) tool. \n
-            Please run helm-docs (v1.5.0) at project root, review & commit docs changes and push a new commit.";
+            Please run helm-docs (v1.13.1) at project root, review & commit docs changes and push a new commit.";
             exit 1;
           else 
             echo -e "helm docs check passed. helm docs update is not required.";

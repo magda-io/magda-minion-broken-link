@@ -2,36 +2,37 @@ import {} from "mocha";
 import _ from "lodash";
 import jsc from "jsverify";
 import { expect } from "chai";
-import wait from "../wait";
-import { shrink } from "jsverify";
+import wait from "../wait.js";
+import { default as jsverify } from "jsverify";
+const { shrink } = jsverify;
 
 describe("wait function", () => {
-    it("should return resolved promise if passed 0 parameter", done => {
-        const promise = wait(0);
-        let isResolved = false;
-        promise.then(() => {
-            isResolved = true;
-        });
-        _.defer(() => {
-            expect(isResolved).to.equal(true);
-            done();
-        });
+  it("should return resolved promise if passed 0 parameter", done => {
+    const promise = wait(0);
+    let isResolved = false;
+    promise.then(() => {
+      isResolved = true;
     });
+    _.defer(() => {
+      expect(isResolved).to.equal(true);
+      done();
+    });
+  });
 
-    it("should wait around `waitTime` milliseconds", async function(this: Mocha.Context) {
-        this.timeout(10000);
-        return jsc.assert(
-            jsc.forall(
-                { ...jsc.integer(1, 2000), shrink: shrink.noop },
-                async function(waitTime: number) {
-                    const now = new Date().getTime();
-                    await wait(waitTime);
-                    const newTime = new Date().getTime();
-                    expect(newTime).to.be.closeTo(now + waitTime, 100);
-                    return true;
-                }
-            ),
-            { tests: 3 }
-        );
-    });
+  it("should wait around `waitTime` milliseconds", async function(this: Mocha.Context) {
+    this.timeout(10000);
+    return jsc.assert(
+      jsc.forall(
+        { ...jsc.integer(1, 2000), shrink: shrink.noop },
+        async function(waitTime: number) {
+          const now = new Date().getTime();
+          await wait(waitTime);
+          const newTime = new Date().getTime();
+          expect(newTime).to.be.closeTo(now + waitTime, 100);
+          return true;
+        }
+      ),
+      { tests: 3 }
+    );
+  });
 });

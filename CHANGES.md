@@ -1,3 +1,9 @@
+# 3.0.0
+
+-   Upgrade nodejs to version 18
+-   Upgrade to Magda minion SDK v3
+-   Fixed support for checking internal storage resource links
+
 # 2.0.0
 
 -   Upgrade nodejs to version 14

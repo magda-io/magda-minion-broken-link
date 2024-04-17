@@ -1,4 +1,4 @@
-module.exports = {
+const config = {
     tabWidth: 4,
     singleQuote: false,
     printWidth: 80,
@@ -25,3 +25,5 @@ module.exports = {
         }
     ]
 };
+
+export default config;

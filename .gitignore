@@ -52,3 +52,4 @@ magda-tenant-api/lib/
 tsconfig.tsbuildinfo
 
 deploy/*/charts
+coverage/

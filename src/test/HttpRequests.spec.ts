@@ -2,178 +2,179 @@ import {} from "mocha";
 import nock from "nock";
 import jsc from "jsverify";
 import { expect } from "chai";
-import { headRequest, getRequest, BadHttpResponseError } from "../HttpRequests";
-import RandomStream from "./RandomStream";
+import {
+  headRequest,
+  getRequest,
+  BadHttpResponseError
+} from "../HttpRequests.js";
+import RandomStream from "./RandomStream.js";
 
 const onMatchFail = (req: any, interceptor: any) => {
-    console.error(
-        `Match failure: ${req.method ? req.method : interceptor.method} ${
-            req.host ? req.host : interceptor.host
-        }${req.path}`
-    );
+  console.error(
+    `Match failure: ${req.method ? req.method : interceptor.method} ${
+      req.host ? req.host : interceptor.host
+    }${req.path}`
+  );
 };
 
 const errorCodeArb = jsc.oneof([jsc.integer(300, 428), jsc.integer(430, 600)]);
 
 describe("Test HttpRequests.ts", () => {
-    before(() => {
-        nock.disableNetConnect();
-        nock.emitter.on("no match", onMatchFail);
+  before(() => {
+    nock.disableNetConnect();
+    nock.emitter.on("no match", onMatchFail);
+  });
+
+  after(() => {
+    nock.emitter.removeListener("no match", onMatchFail);
+    nock.cleanAll();
+    nock.abortPendingRequests();
+  });
+
+  describe("headRequest", () => {
+    it("should return status code when response status is between 200 to 299", async function() {
+      return jsc.assert(
+        jsc.forall(jsc.integer(200, 299), async function(statusCode) {
+          const url = "http://example.com";
+          const path = "/xx";
+          nock(url)
+            .head(path)
+            .reply(statusCode);
+
+          const resStatusCode = await headRequest(`${url}${path}`);
+          expect(resStatusCode).to.equal(statusCode);
+          return true;
+        })
+      );
     });
 
-    after(() => {
-        nock.emitter.removeListener("no match", onMatchFail);
-        nock.cleanAll();
-        nock.abortPendingRequests();
+    it("should return status code when response status is 429", async function() {
+      const url = "http://example.com";
+      const path = "/xx";
+      nock(url)
+        .head(path)
+        .reply(429);
+
+      const resStatusCode = await headRequest(`${url}${path}`);
+      expect(resStatusCode).to.equal(429);
+      return true;
     });
 
-    describe("headRequest", () => {
-        it("should return status code when response status is between 200 to 299", async function() {
-            return jsc.assert(
-                jsc.forall(jsc.integer(200, 299), async function(statusCode) {
-                    const url = "http://example.com";
-                    const path = "/xx";
-                    nock(url)
-                        .head(path)
-                        .reply(statusCode);
+    it("should throw `BadHttpResponseError` when response status is not between 200 to 299 or 429", async function() {
+      return jsc.assert(
+        jsc.forall(errorCodeArb, async function(statusCode) {
+          const url = "http://example.com";
+          const path = "/xx";
+          nock(url)
+            .head(path)
+            .reply(statusCode);
 
-                    const resStatusCode = await headRequest(`${url}${path}`);
-                    expect(resStatusCode).to.equal(statusCode);
-                    return true;
-                })
-            );
-        });
+          let error: any = null;
+          try {
+            await headRequest(`${url}${path}`);
+          } catch (e) {
+            error = e;
+          }
+          expect(error).to.be.an.instanceof(BadHttpResponseError);
+          expect(error.httpStatusCode).to.equal(statusCode);
+          return true;
+        })
+      );
+    });
+  });
 
-        it("should return status code when response status is 429", async function() {
-            const url = "http://example.com";
-            const path = "/xx";
-            nock(url)
-                .head(path)
-                .reply(429);
+  describe("getRequest", () => {
+    afterEach(() => {
+      nock.cleanAll();
+      nock.abortPendingRequests();
+    });
+    it("should return status code when response status is between 200 to 299", async function(this: Mocha.Context) {
+      this.timeout(5000);
+      return jsc.assert(
+        jsc.forall(jsc.integer(200, 299), jsc.integer(0, 10), async function(
+          statusCode,
+          streamWaitTime
+        ) {
+          const url = "http://example.com";
+          const path = "/xx";
+          const scope = nock(url)
+            .get(path)
+            .reply(statusCode, () => {
+              return new RandomStream(streamWaitTime);
+            });
 
-            const resStatusCode = await headRequest(`${url}${path}`);
-            expect(resStatusCode).to.equal(429);
-            return true;
-        });
-
-        it("should throw `BadHttpResponseError` when response status is not between 200 to 299 or 429", async function() {
-            return jsc.assert(
-                jsc.forall(errorCodeArb, async function(statusCode) {
-                    const url = "http://example.com";
-                    const path = "/xx";
-                    nock(url)
-                        .head(path)
-                        .reply(statusCode);
-
-                    let error: any = null;
-                    try {
-                        await headRequest(`${url}${path}`);
-                    } catch (e) {
-                        error = e;
-                    }
-                    expect(error).to.be.an.instanceof(BadHttpResponseError);
-                    expect(error.httpStatusCode).to.equal(statusCode);
-                    return true;
-                })
-            );
-        });
+          const resStatusCode = await getRequest(`${url}${path}`);
+          scope.done();
+          expect(resStatusCode).to.equal(statusCode);
+          return true;
+        })
+      );
     });
 
-    describe("getRequest", () => {
-        afterEach(() => {
-            nock.cleanAll();
-            nock.abortPendingRequests();
-        });
-        it("should return status code when response status is between 200 to 299", async function(this: Mocha.Context) {
-            this.timeout(5000);
-            return jsc.assert(
-                jsc.forall(
-                    jsc.integer(200, 299),
-                    jsc.integer(0, 10),
-                    async function(statusCode, streamWaitTime) {
-                        const url = "http://example.com";
-                        const path = "/xx";
-                        const scope = nock(url)
-                            .get(path)
-                            .reply(statusCode, () => {
-                                return new RandomStream(streamWaitTime);
-                            });
-
-                        const resStatusCode = await getRequest(`${url}${path}`);
-                        scope.done();
-                        expect(resStatusCode).to.equal(statusCode);
-                        return true;
-                    }
-                )
-            );
-        });
-
-        it("should wait until stream completes", async function(this: Mocha.Context) {
-            this.timeout(30000);
-            return (
-                jsc.assert(
-                    jsc.forall(
-                        jsc.integer(200, 299),
-                        jsc.integer(1500, 3000),
-                        async function(statusCode, streamWaitTime) {
-                            const url = "http://example.com";
-                            const path = "/xx";
-                            nock(url)
-                                .get(path)
-                                .reply(statusCode, () => {
-                                    return new RandomStream(streamWaitTime);
-                                });
-
-                            const now = new Date().getTime();
-                            const resStatusCode = await getRequest(
-                                `${url}${path}`
-                            );
-                            const newTime = new Date().getTime();
-                            const diff = newTime - now;
-                            expect(resStatusCode).to.equal(statusCode);
-                            expect(diff).to.closeTo(streamWaitTime, 50);
-                            return true;
-                        }
-                    )
-                ),
-                {
-                    times: 3
-                }
-            );
-        });
-
-        it("should return status code when response status is 429", async function() {
-            const url = "http://example.com";
-            const path = "/xx";
-            nock(url)
+    it("should wait until stream completes", async function(this: Mocha.Context) {
+      this.timeout(30000);
+      return (
+        jsc.assert(
+          jsc.forall(
+            jsc.integer(200, 299),
+            jsc.integer(1500, 3000),
+            async function(statusCode, streamWaitTime) {
+              const url = "http://example.com";
+              const path = "/xx";
+              nock(url)
                 .get(path)
-                .reply(429);
+                .reply(statusCode, () => {
+                  return new RandomStream(streamWaitTime);
+                });
 
-            const resStatusCode = await getRequest(`${url}${path}`);
-            expect(resStatusCode).to.equal(429);
-            return true;
-        });
-
-        it("should throw `BadHttpResponseError` when response status is not between 200 to 299 or 429", async function() {
-            return jsc.assert(
-                jsc.forall(errorCodeArb, async function(statusCode) {
-                    const url = "http://example.com";
-                    const path = "/xx";
-                    nock(url)
-                        .get(path)
-                        .reply(statusCode);
-
-                    let error: any = null;
-                    try {
-                        await getRequest(`${url}${path}`);
-                    } catch (e) {
-                        error = e;
-                    }
-                    expect(error).to.be.an.instanceof(BadHttpResponseError);
-                    expect(error.httpStatusCode).to.equal(statusCode);
-                    return true;
-                })
-            );
-        });
+              const now = new Date().getTime();
+              const resStatusCode = await getRequest(`${url}${path}`);
+              const newTime = new Date().getTime();
+              const diff = newTime - now;
+              expect(resStatusCode).to.equal(statusCode);
+              expect(diff).to.closeTo(streamWaitTime, 50);
+              return true;
+            }
+          )
+        ),
+        {
+          times: 3
+        }
+      );
     });
+
+    it("should return status code when response status is 429", async function() {
+      const url = "http://example.com";
+      const path = "/xx";
+      nock(url)
+        .get(path)
+        .reply(429);
+
+      const resStatusCode = await getRequest(`${url}${path}`);
+      expect(resStatusCode).to.equal(429);
+      return true;
+    });
+
+    it("should throw `BadHttpResponseError` when response status is not between 200 to 299 or 429", async function() {
+      return jsc.assert(
+        jsc.forall(errorCodeArb, async function(statusCode) {
+          const url = "http://example.com";
+          const path = "/xx";
+          nock(url)
+            .get(path)
+            .reply(statusCode);
+
+          let error: any = null;
+          try {
+            await getRequest(`${url}${path}`);
+          } catch (e) {
+            error = e;
+          }
+          expect(error).to.be.an.instanceof(BadHttpResponseError);
+          expect(error.httpStatusCode).to.equal(statusCode);
+          return true;
+        })
+      );
+    });
+  });
 });

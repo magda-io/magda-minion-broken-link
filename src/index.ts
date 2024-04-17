@@ -1,12 +1,12 @@
 import minion, { commonYargs } from "@magda/minion-sdk";
-import onRecordFound from "./onRecordFound";
-import brokenLinkAspectDef from "./brokenLinkAspectDef";
+import onRecordFound from "./onRecordFound.js";
+import brokenLinkAspectDef from "./brokenLinkAspectDef.js";
 import { CoreOptions } from "request";
 import { coerceJson } from "@magda/utils";
 
 const ID = "minion-broken-link";
 
-const argv = commonYargs(6111, "http://localhost:6111", argv =>
+const argv = commonYargs(6111, "http://localhost:6111", (argv) =>
     argv
         .option("externalRetries", {
             describe:
@@ -29,6 +29,18 @@ const argv = commonYargs(6111, "http://localhost:6111", argv =>
             default:
                 process.env.REQUEST_OPTS || JSON.stringify({ timeout: 20000 })
         })
+        .option("storageApiBaseUrl", {
+            describe:
+                "The base URL of the storage API to use when generating access URLs for internal stored resources",
+            type: "string",
+            default: process.env.STORAGE_API_BASE_URL || "http://storage-api/v0"
+        })
+        .option("datasetBucketName", {
+            describe:
+                "The name of the storage bucket where all dataset files are stored.",
+            type: "string",
+            default: process.env.DATASET_BUCKET_NAME || "magda-datasets"
+        })
 );
 
 console.log(
@@ -40,15 +52,19 @@ function sleuthBrokenLinks() {
     return minion({
         argv,
         id: ID,
-        aspects: ["dataset-distributions"],
+        aspects: ["dcat-distribution-strings"],
         optionalAspects: [],
         async: true,
         writeAspectDefs: [brokenLinkAspectDef],
-        dereference: true,
+        dereference: false,
         onRecordFound: (record, registry) =>
             onRecordFound(
                 record,
                 registry,
+                argv.storageApiBaseUrl,
+                argv.datasetBucketName,
+                argv.jwtSecret,
+                argv.userId,
                 argv.externalRetries,
                 1,
                 argv.domainWaitTimeConfig as any,
@@ -57,7 +73,7 @@ function sleuthBrokenLinks() {
     });
 }
 
-sleuthBrokenLinks().catch(e => {
+sleuthBrokenLinks().catch((e) => {
     console.error("Error: " + e.message, e);
     process.exit(1);
 });
