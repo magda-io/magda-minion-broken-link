@@ -1,3 +1,8 @@
+# 3.1.0
+
+-   Upgrade to Node.js 22: the docker image now uses `node:22-alpine` (was `node:18-alpine`), and CI uses Node.js 22
+-   Upgrade GitHub Actions (checkout, setup-node, setup-qemu & setup-buildx) to current versions
+
 # 3.0.0
 
 -   Upgrade nodejs to version 18
